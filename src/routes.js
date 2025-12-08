@@ -39,6 +39,7 @@ Coded by www.creative-tim.com
 import Dashboard from "layouts/dashboard";
 import Tables from "layouts/tables";
 import Tables2 from "layouts/tables2";
+import Tables2_1 from "layouts/tables2-1";
 import Billing from "layouts/billing";
 import RTL from "layouts/rtl";
 import Notifications from "layouts/notifications";
@@ -71,8 +72,22 @@ const routes = [
     name: "Tables 2",
     key: "tables2",
     icon: <Icon fontSize="small">table_view</Icon>,
-    route: "/tables2",
-    component: <Tables2 />,
+    collapse: [
+      {
+        name: "Tables 2",
+        key: "tables2-main",
+        route: "/tables2",
+        icon: <Icon fontSize="small">table_rows</Icon>,
+        component: <Tables2 />,
+      },
+      {
+        name: "Tables 2-1",
+        key: "tables2-1",
+        route: "/tables2-1",
+        icon: <Icon fontSize="small">table_rows</Icon>,
+        component: <Tables2_1 />,
+      },
+    ],
   },
   {
     type: "collapse",
