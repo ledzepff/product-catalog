@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 
 // @mui material components
 import Grid from "@mui/material/Grid";
@@ -27,7 +27,7 @@ import DataTable from "examples/Tables/DataTable";
 // Supabase client
 import { supabase } from "supabaseClient";
 
-function Services() {
+function Regions() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -42,35 +42,22 @@ function Services() {
   const [editingRow, setEditingRow] = useState(null);
   const [editFormData, setEditFormData] = useState({});
   const [saving, setSaving] = useState(false);
-  const [editFormTouched, setEditFormTouched] = useState({ name: false, description: false });
+  const [editFormTouched, setEditFormTouched] = useState({ name: false, address: false });
 
   // Add modal state
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addFormData, setAddFormData] = useState({
     name: "",
-    description: "",
-    illustration: null,
+    address: "",
   });
   const [adding, setAdding] = useState(false);
-  const [addFormTouched, setAddFormTouched] = useState({ name: false, description: false });
-
-  // Image upload refs
-  const addFileInputRef = useRef(null);
-  const editFileInputRef = useRef(null);
-
-  // Image preview state
-  const [addImagePreview, setAddImagePreview] = useState(null);
-  const [editImagePreview, setEditImagePreview] = useState(null);
-
-  // Image view modal state
-  const [imageViewOpen, setImageViewOpen] = useState(false);
-  const [imageViewUrl, setImageViewUrl] = useState(null);
+  const [addFormTouched, setAddFormTouched] = useState({ name: false, address: false });
 
   async function fetchData() {
     try {
       setLoading(true);
       const { data: tableData, error: fetchError } = await supabase
-        .from("service")
+        .from("region")
         .select("*")
         .eq("is_active", true)
         .order("created_at", { ascending: false });
@@ -91,57 +78,6 @@ function Services() {
     fetchData();
   }, []);
 
-  // Convert file to base64
-  const fileToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = (err) => reject(err);
-    });
-  };
-
-  // Convert base64 to bytea hex format for Supabase
-  const base64ToBytea = (base64String) => {
-    const base64Data = base64String.includes(",") ? base64String.split(",")[1] : base64String;
-    const binaryString = atob(base64Data);
-    let hex = "\\x";
-    for (let i = 0; i < binaryString.length; i++) {
-      const hexByte = binaryString.charCodeAt(i).toString(16).padStart(2, "0");
-      hex += hexByte;
-    }
-    return hex;
-  };
-
-  // Convert bytea hex to base64 data URL for display
-  const byteaToDataUrl = (byteaData) => {
-    if (!byteaData) return null;
-    try {
-      let hexString = byteaData;
-      if (typeof byteaData === "string" && byteaData.startsWith("\\x")) {
-        hexString = byteaData.slice(2);
-      }
-      const bytes = new Uint8Array(hexString.match(/.{1,2}/g).map((byte) => parseInt(byte, 16)));
-      let binary = "";
-      bytes.forEach((byte) => {
-        binary += String.fromCharCode(byte);
-      });
-      const base64 = btoa(binary);
-      let mimeType = "image/png";
-      if (hexString.startsWith("ffd8ff")) {
-        mimeType = "image/jpeg";
-      } else if (hexString.startsWith("89504e47")) {
-        mimeType = "image/png";
-      } else if (hexString.startsWith("47494638")) {
-        mimeType = "image/gif";
-      }
-      return `data:${mimeType};base64,${base64}`;
-    } catch (err) {
-      console.error("Error converting bytea to data URL:", err);
-      return null;
-    }
-  };
-
   // Delete handlers (soft delete)
   const handleDeleteClick = (row) => {
     setRowToDelete(row);
@@ -159,7 +95,7 @@ function Services() {
     try {
       setDeleting(true);
       const { error: updateError } = await supabase
-        .from("service")
+        .from("region")
         .update({
           is_active: false,
           updated_at: new Date().toISOString(),
@@ -186,15 +122,9 @@ function Services() {
     setEditingRow(row);
     setEditFormData({
       name: row.name || "",
-      description: row.description || "",
-      illustration: row.illustration,
+      address: row.address || "",
     });
-    setEditFormTouched({ name: false, description: false });
-    if (row.illustration) {
-      setEditImagePreview(byteaToDataUrl(row.illustration));
-    } else {
-      setEditImagePreview(null);
-    }
+    setEditFormTouched({ name: false, address: false });
     setEditDialogOpen(true);
   };
 
@@ -202,8 +132,7 @@ function Services() {
     setEditDialogOpen(false);
     setEditingRow(null);
     setEditFormData({});
-    setEditImagePreview(null);
-    setEditFormTouched({ name: false, description: false });
+    setEditFormTouched({ name: false, address: false });
   };
 
   const handleEditFormChange = (field, value) => {
@@ -213,16 +142,6 @@ function Services() {
     }));
   };
 
-  const handleEditImageChange = async (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const base64 = await fileToBase64(file);
-      setEditImagePreview(base64);
-      const bytea = base64ToBytea(base64);
-      handleEditFormChange("illustration", bytea);
-    }
-  };
-
   const handleEditSave = async () => {
     if (!editingRow) return;
 
@@ -230,14 +149,13 @@ function Services() {
       setSaving(true);
       const updateData = {
         name: editFormData.name,
-        description: editFormData.description,
-        illustration: editFormData.illustration,
+        address: editFormData.address,
         updated_at: new Date().toISOString(),
         updated_by: "admin",
       };
 
       const { error: updateError } = await supabase
-        .from("service")
+        .from("region")
         .update(updateData)
         .eq("id", editingRow.id);
 
@@ -258,11 +176,9 @@ function Services() {
   const handleAddClick = () => {
     setAddFormData({
       name: "",
-      description: "",
-      illustration: null,
+      address: "",
     });
-    setAddFormTouched({ name: false, description: false });
-    setAddImagePreview(null);
+    setAddFormTouched({ name: false, address: false });
     setAddDialogOpen(true);
   };
 
@@ -270,11 +186,9 @@ function Services() {
     setAddDialogOpen(false);
     setAddFormData({
       name: "",
-      description: "",
-      illustration: null,
+      address: "",
     });
-    setAddImagePreview(null);
-    setAddFormTouched({ name: false, description: false });
+    setAddFormTouched({ name: false, address: false });
   };
 
   const handleAddFormChange = (field, value) => {
@@ -284,29 +198,17 @@ function Services() {
     }));
   };
 
-  const handleAddImageChange = async (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const base64 = await fileToBase64(file);
-      setAddImagePreview(base64);
-      const bytea = base64ToBytea(base64);
-      handleAddFormChange("illustration", bytea);
-    }
-  };
-
   const handleAddSave = async () => {
     try {
       setAdding(true);
       const insertData = {
         name: addFormData.name,
-        description: addFormData.description,
-        illustration: addFormData.illustration,
-        is_active: true,
+        address: addFormData.address,
         created_at: new Date().toISOString(),
         created_by: "admin",
       };
 
-      const { error: insertError } = await supabase.from("service").insert(insertData);
+      const { error: insertError } = await supabase.from("region").insert(insertData);
 
       if (insertError) {
         throw insertError;
@@ -321,54 +223,39 @@ function Services() {
     }
   };
 
-  // Image view handlers
-  const handleImageClick = (illustration) => {
-    const dataUrl = byteaToDataUrl(illustration);
-    if (dataUrl) {
-      setImageViewUrl(dataUrl);
-      setImageViewOpen(true);
-    }
-  };
-
-  const handleImageViewClose = () => {
-    setImageViewOpen(false);
-    setImageViewUrl(null);
-  };
-
   // Validation helpers
   const validateName = (name) => {
     if (!name || name.trim().length === 0) {
       return "Name is required";
     }
-    if (name.trim().length < 5) {
-      return "Name must be at least 5 characters long";
+    if (name.trim().length < 3) {
+      return "Name must be at least 3 characters long";
     }
     return "";
   };
 
-  const validateDescription = (description) => {
-    if (!description || description.trim().length === 0) {
-      return "Description is required";
+  const validateAddress = (address) => {
+    if (!address || address.trim().length === 0) {
+      return "Address is required";
     }
-    if (description.trim().length < 10) {
-      return "Description must be at least 10 characters long";
+    if (address.trim().length < 5) {
+      return "Address must be at least 5 characters long";
     }
     return "";
   };
 
   const isAddFormValid = () => {
-    return !validateName(addFormData.name) && !validateDescription(addFormData.description);
+    return !validateName(addFormData.name) && !validateAddress(addFormData.address);
   };
 
   const isEditFormValid = () => {
-    return !validateName(editFormData.name) && !validateDescription(editFormData.description);
+    return !validateName(editFormData.name) && !validateAddress(editFormData.address);
   };
 
   // Define columns for DataTable
   const columns = [
-    { Header: "name", accessor: "name", width: "20%", align: "left" },
-    { Header: "description", accessor: "description", width: "45%", align: "left" },
-    { Header: "illustration", accessor: "illustration", width: "15%", align: "center" },
+    { Header: "name", accessor: "name", width: "35%", align: "left" },
+    { Header: "address", accessor: "address", width: "45%", align: "left" },
     { Header: "actions", accessor: "actions", width: "20%", align: "center" },
   ];
 
@@ -379,30 +266,9 @@ function Services() {
         {row.name || "-"}
       </MDTypography>
     ),
-    description: (
+    address: (
       <MDTypography variant="caption" color="text">
-        {row.description || "-"}
-      </MDTypography>
-    ),
-    illustration: row.illustration ? (
-      <IconButton
-        size="small"
-        onClick={() => handleImageClick(row.illustration)}
-        title="View image"
-        sx={{
-          color: "info.main",
-          transition: "all 0.2s ease-in-out",
-          "&:hover": {
-            transform: "scale(1.2)",
-            backgroundColor: "rgba(26, 115, 232, 0.1)",
-          },
-        }}
-      >
-        <Icon>image</Icon>
-      </IconButton>
-    ) : (
-      <MDTypography variant="caption" color="text">
-        -
+        {row.address || "-"}
       </MDTypography>
     ),
     actions: (
@@ -460,11 +326,11 @@ function Services() {
                 alignItems="center"
               >
                 <MDTypography variant="h6" color="white">
-                  Services
+                  Regions
                 </MDTypography>
                 <MDButton variant="gradient" color="light" size="small" onClick={handleAddClick}>
                   <Icon sx={{ mr: 1 }}>add</Icon>
-                  Add Service
+                  Add Region
                 </MDButton>
               </MDBox>
               <MDBox pt={3}>
@@ -481,7 +347,7 @@ function Services() {
                 ) : data.length === 0 ? (
                   <MDBox px={3} pb={3}>
                     <MDTypography variant="body2" color="text">
-                      No services found. Click &quot;Add Service&quot; to create one.
+                      No regions found. Click &quot;Add Region&quot; to create one.
                     </MDTypography>
                   </MDBox>
                 ) : (
@@ -532,7 +398,7 @@ function Services() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle id="edit-dialog-title">Edit Service</DialogTitle>
+        <DialogTitle id="edit-dialog-title">Edit Region</DialogTitle>
         <DialogContent>
           <MDBox pt={2}>
             <TextField
@@ -548,58 +414,17 @@ function Services() {
             />
             <TextField
               fullWidth
-              label="Description *"
-              value={editFormData.description || ""}
-              onChange={(e) => handleEditFormChange("description", e.target.value)}
-              onBlur={() => setEditFormTouched((prev) => ({ ...prev, description: true }))}
+              label="Address *"
+              value={editFormData.address || ""}
+              onChange={(e) => handleEditFormChange("address", e.target.value)}
+              onBlur={() => setEditFormTouched((prev) => ({ ...prev, address: true }))}
               margin="normal"
               variant="outlined"
               multiline
               rows={3}
-              error={editFormTouched.description && !!validateDescription(editFormData.description)}
-              helperText={
-                editFormTouched.description && validateDescription(editFormData.description)
-              }
+              error={editFormTouched.address && !!validateAddress(editFormData.address)}
+              helperText={editFormTouched.address && validateAddress(editFormData.address)}
             />
-            <MDBox mt={2}>
-              <MDTypography variant="caption" color="text" fontWeight="medium">
-                Illustration
-              </MDTypography>
-              <MDBox
-                mt={1}
-                display="flex"
-                flexDirection="column"
-                alignItems="center"
-                gap={2}
-                p={2}
-                sx={{ border: "1px dashed #ccc", borderRadius: 2 }}
-              >
-                {editImagePreview && (
-                  <MDBox
-                    component="img"
-                    src={editImagePreview}
-                    alt="Preview"
-                    sx={{ maxWidth: "100%", maxHeight: 150, objectFit: "contain", borderRadius: 1 }}
-                  />
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  ref={editFileInputRef}
-                  style={{ display: "none" }}
-                  onChange={handleEditImageChange}
-                />
-                <MDButton
-                  variant="outlined"
-                  color="info"
-                  size="small"
-                  onClick={() => editFileInputRef.current?.click()}
-                >
-                  <Icon sx={{ mr: 1 }}>upload</Icon>
-                  {editImagePreview ? "Change Image" : "Upload Image"}
-                </MDButton>
-              </MDBox>
-            </MDBox>
           </MDBox>
         </DialogContent>
         <DialogActions>
@@ -620,7 +445,7 @@ function Services() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle id="add-dialog-title">Add Service</DialogTitle>
+        <DialogTitle id="add-dialog-title">Add Region</DialogTitle>
         <DialogContent>
           <MDBox pt={2}>
             <TextField
@@ -636,58 +461,17 @@ function Services() {
             />
             <TextField
               fullWidth
-              label="Description *"
-              value={addFormData.description}
-              onChange={(e) => handleAddFormChange("description", e.target.value)}
-              onBlur={() => setAddFormTouched((prev) => ({ ...prev, description: true }))}
+              label="Address *"
+              value={addFormData.address}
+              onChange={(e) => handleAddFormChange("address", e.target.value)}
+              onBlur={() => setAddFormTouched((prev) => ({ ...prev, address: true }))}
               margin="normal"
               variant="outlined"
               multiline
               rows={3}
-              error={addFormTouched.description && !!validateDescription(addFormData.description)}
-              helperText={
-                addFormTouched.description && validateDescription(addFormData.description)
-              }
+              error={addFormTouched.address && !!validateAddress(addFormData.address)}
+              helperText={addFormTouched.address && validateAddress(addFormData.address)}
             />
-            <MDBox mt={2}>
-              <MDTypography variant="caption" color="text" fontWeight="medium">
-                Illustration
-              </MDTypography>
-              <MDBox
-                mt={1}
-                display="flex"
-                flexDirection="column"
-                alignItems="center"
-                gap={2}
-                p={2}
-                sx={{ border: "1px dashed #ccc", borderRadius: 2 }}
-              >
-                {addImagePreview && (
-                  <MDBox
-                    component="img"
-                    src={addImagePreview}
-                    alt="Preview"
-                    sx={{ maxWidth: "100%", maxHeight: 150, objectFit: "contain", borderRadius: 1 }}
-                  />
-                )}
-                <input
-                  type="file"
-                  accept="image/*"
-                  ref={addFileInputRef}
-                  style={{ display: "none" }}
-                  onChange={handleAddImageChange}
-                />
-                <MDButton
-                  variant="outlined"
-                  color="info"
-                  size="small"
-                  onClick={() => addFileInputRef.current?.click()}
-                >
-                  <Icon sx={{ mr: 1 }}>upload</Icon>
-                  {addImagePreview ? "Change Image" : "Upload Image"}
-                </MDButton>
-              </MDBox>
-            </MDBox>
           </MDBox>
         </DialogContent>
         <DialogActions>
@@ -699,27 +483,8 @@ function Services() {
           </MDButton>
         </DialogActions>
       </Dialog>
-
-      {/* Image View Modal */}
-      <Dialog
-        open={imageViewOpen}
-        onClose={handleImageViewClose}
-        maxWidth="md"
-        aria-labelledby="image-view-dialog"
-      >
-        <DialogContent sx={{ p: 0, display: "flex", justifyContent: "center" }}>
-          {imageViewUrl && (
-            <MDBox
-              component="img"
-              src={imageViewUrl}
-              alt="Illustration"
-              sx={{ maxWidth: "100%", maxHeight: "80vh", objectFit: "contain" }}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </DashboardLayout>
   );
 }
 
-export default Services;
+export default Regions;

@@ -40,6 +40,9 @@ import Dashboard from "layouts/dashboard";
 import Tables from "layouts/tables";
 import Tables2 from "layouts/tables2";
 import Tables2_1 from "layouts/tables2-1";
+import Compute from "layouts/compute";
+import Regions from "layouts/regions";
+import Clouds from "layouts/clouds";
 import Billing from "layouts/billing";
 import RTL from "layouts/rtl";
 import Notifications from "layouts/notifications";
@@ -69,23 +72,44 @@ const routes = [
   },
   {
     type: "collapse",
-    name: "Tables 2",
-    key: "tables2",
-    icon: <Icon fontSize="small">table_view</Icon>,
+    name: "Manage",
+    key: "manage",
+    icon: <Icon fontSize="small">settings</Icon>,
     collapse: [
       {
-        name: "Tables 2",
-        key: "tables2-main",
-        route: "/tables2",
-        icon: <Icon fontSize="small">table_rows</Icon>,
+        name: "Regions",
+        key: "regions",
+        route: "/regions",
+        icon: <Icon fontSize="small">public</Icon>,
+        component: <Regions />,
+      },
+      {
+        name: "Services",
+        key: "services",
+        route: "/services",
+        icon: <Icon fontSize="small">build</Icon>,
         component: <Tables2 />,
       },
       {
-        name: "Tables 2-1",
-        key: "tables2-1",
-        route: "/tables2-1",
-        icon: <Icon fontSize="small">table_rows</Icon>,
+        name: "Service Types",
+        key: "service-types",
+        route: "/service-types",
+        icon: <Icon fontSize="small">category</Icon>,
         component: <Tables2_1 />,
+      },
+      {
+        name: "Clouds",
+        key: "clouds",
+        route: "/clouds",
+        icon: <Icon fontSize="small">cloud</Icon>,
+        component: <Clouds />,
+      },
+      {
+        name: "Compute",
+        key: "compute",
+        route: "/compute",
+        icon: <Icon fontSize="small">computer</Icon>,
+        component: <Compute />,
       },
     ],
   },
