@@ -33,9 +33,9 @@ function BundlesContent() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [searchTerm, setSearchTerm] = useState("");
 
   // Lookup data
-  const [regions, setRegions] = useState([]);
   const [services, setServices] = useState([]);
   const [serviceTypes, setServiceTypes] = useState([]);
   const [cloudFamilies, setCloudFamilies] = useState([]);
@@ -54,7 +54,6 @@ function BundlesContent() {
     code: false,
     vcpu: false,
     vram: false,
-    region_id: false,
     service_id: false,
     service_type_id: false,
     cloud_family_id: false,
@@ -66,7 +65,6 @@ function BundlesContent() {
     code: "",
     vcpu: "",
     vram: "",
-    region_id: "",
     service_id: "",
     service_type_id: "",
     cloud_family_id: "",
@@ -76,7 +74,6 @@ function BundlesContent() {
     code: false,
     vcpu: false,
     vram: false,
-    region_id: false,
     service_id: false,
     service_type_id: false,
     cloud_family_id: false,
@@ -84,19 +81,16 @@ function BundlesContent() {
 
   async function fetchLookupData() {
     try {
-      const [regionsRes, servicesRes, serviceTypesRes, cloudFamiliesRes] = await Promise.all([
-        supabase.from("region").select("id, name").eq("is_active", true).order("name"),
+      const [servicesRes, serviceTypesRes, cloudFamiliesRes] = await Promise.all([
         supabase.from("service").select("id, name").eq("is_active", true).order("name"),
         supabase.from("service_type").select("id, name").eq("is_active", true).order("name"),
-        supabase.from("cloud_family").select("id, code").eq("is_active", true).order("code"),
+        supabase.from("cloud_family").select("id, code, region:region(id, name)").eq("is_active", true).order("code"),
       ]);
 
-      if (regionsRes.error) throw regionsRes.error;
       if (servicesRes.error) throw servicesRes.error;
       if (serviceTypesRes.error) throw serviceTypesRes.error;
       if (cloudFamiliesRes.error) throw cloudFamiliesRes.error;
 
-      setRegions(regionsRes.data || []);
       setServices(servicesRes.data || []);
       setServiceTypes(serviceTypesRes.data || []);
       setCloudFamilies(cloudFamiliesRes.data || []);
@@ -113,10 +107,9 @@ function BundlesContent() {
         .select(
           `
           *,
-          region:region!bundles_region-id_fkey(id, name),
           service:service(id, name),
           service_type:service_type(id, name),
-          cloud_family:cloud_family(id, code)
+          cloud_family:cloud_family(id, code, region:region(id, name))
         `
         )
         .eq("is_active", true)
@@ -185,7 +178,6 @@ function BundlesContent() {
       code: row.code || "",
       vcpu: row.vcpu?.toString() || "",
       vram: row.vram?.toString() || "",
-      region_id: row["region-id"] || "",
       service_id: row.service_id || "",
       service_type_id: row.service_type_id || "",
       cloud_family_id: row.cloud_family_id || "",
@@ -194,7 +186,6 @@ function BundlesContent() {
       code: false,
       vcpu: false,
       vram: false,
-      region_id: false,
       service_id: false,
       service_type_id: false,
       cloud_family_id: false,
@@ -210,7 +201,6 @@ function BundlesContent() {
       code: false,
       vcpu: false,
       vram: false,
-      region_id: false,
       service_id: false,
       service_type_id: false,
       cloud_family_id: false,
@@ -233,7 +223,6 @@ function BundlesContent() {
         code: editFormData.code,
         vcpu: parseInt(editFormData.vcpu, 10),
         vram: parseInt(editFormData.vram, 10),
-        "region-id": editFormData.region_id,
         service_id: editFormData.service_id,
         service_type_id: editFormData.service_type_id,
         cloud_family_id: editFormData.cloud_family_id,
@@ -265,7 +254,6 @@ function BundlesContent() {
       code: "",
       vcpu: "",
       vram: "",
-      region_id: "",
       service_id: "",
       service_type_id: "",
       cloud_family_id: "",
@@ -274,7 +262,6 @@ function BundlesContent() {
       code: false,
       vcpu: false,
       vram: false,
-      region_id: false,
       service_id: false,
       service_type_id: false,
       cloud_family_id: false,
@@ -288,7 +275,6 @@ function BundlesContent() {
       code: "",
       vcpu: "",
       vram: "",
-      region_id: "",
       service_id: "",
       service_type_id: "",
       cloud_family_id: "",
@@ -297,7 +283,6 @@ function BundlesContent() {
       code: false,
       vcpu: false,
       vram: false,
-      region_id: false,
       service_id: false,
       service_type_id: false,
       cloud_family_id: false,
@@ -318,7 +303,6 @@ function BundlesContent() {
         code: addFormData.code,
         vcpu: parseInt(addFormData.vcpu, 10),
         vram: parseInt(addFormData.vram, 10),
-        "region-id": addFormData.region_id,
         service_id: addFormData.service_id,
         service_type_id: addFormData.service_type_id,
         cloud_family_id: addFormData.cloud_family_id,
@@ -374,13 +358,6 @@ function BundlesContent() {
     return "";
   };
 
-  const validateRegionId = (regionId) => {
-    if (!regionId) {
-      return "Region is required";
-    }
-    return "";
-  };
-
   const validateServiceId = (serviceId) => {
     if (!serviceId) {
       return "Service is required";
@@ -407,7 +384,6 @@ function BundlesContent() {
       !validateCode(addFormData.code) &&
       !validateVcpu(addFormData.vcpu) &&
       !validateVram(addFormData.vram) &&
-      !validateRegionId(addFormData.region_id) &&
       !validateServiceId(addFormData.service_id) &&
       !validateServiceTypeId(addFormData.service_type_id) &&
       !validateCloudFamilyId(addFormData.cloud_family_id)
@@ -419,19 +395,55 @@ function BundlesContent() {
       !validateCode(editFormData.code) &&
       !validateVcpu(editFormData.vcpu) &&
       !validateVram(editFormData.vram) &&
-      !validateRegionId(editFormData.region_id) &&
       !validateServiceId(editFormData.service_id) &&
       !validateServiceTypeId(editFormData.service_type_id) &&
       !validateCloudFamilyId(editFormData.cloud_family_id)
     );
   };
 
+  // Filter data based on search term
+  const filteredData = data.filter((row) => {
+    if (!searchTerm.trim()) return true;
+    const search = searchTerm.toLowerCase();
+    const bundleName = row.cloud_family?.code ? `${row.cloud_family.code}.${row.code}` : row.code;
+    return (
+      (bundleName && bundleName.toLowerCase().includes(search)) ||
+      (row.code && row.code.toLowerCase().includes(search)) ||
+      (row.vcpu && row.vcpu.toString().includes(search)) ||
+      (row.vram && row.vram.toString().includes(search)) ||
+      (row.cloud_family?.region?.name && row.cloud_family.region.name.toLowerCase().includes(search)) ||
+      (row.service?.name && row.service.name.toLowerCase().includes(search)) ||
+      (row.service_type?.name && row.service_type.name.toLowerCase().includes(search)) ||
+      (row.cloud_family?.code && row.cloud_family.code.toLowerCase().includes(search))
+    );
+  });
+
   // Define columns for DataTable
   const columns = [
     { Header: "bundle", accessor: "bundle_name", width: "15%", align: "left" },
     { Header: "code", accessor: "code", width: "10%", align: "left" },
-    { Header: "vcpu", accessor: "vcpu", width: "7%", align: "center" },
-    { Header: "vram", accessor: "vram", width: "7%", align: "center" },
+    {
+      Header: "vcpu",
+      accessor: "vcpu",
+      width: "7%",
+      align: "center",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.vcpu_raw || 0;
+        const b = rowB.original.vcpu_raw || 0;
+        return a - b;
+      },
+    },
+    {
+      Header: "vram",
+      accessor: "vram",
+      width: "7%",
+      align: "center",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.vram_raw || 0;
+        const b = rowB.original.vram_raw || 0;
+        return a - b;
+      },
+    },
     { Header: "region", accessor: "region_name", width: "11%", align: "left" },
     { Header: "service", accessor: "service_name", width: "11%", align: "left" },
     { Header: "service type", accessor: "service_type_name", width: "12%", align: "left" },
@@ -440,7 +452,7 @@ function BundlesContent() {
   ];
 
   // Transform data to rows format for DataTable
-  const rows = data.map((row) => ({
+  const rows = filteredData.map((row) => ({
     bundle_name: (
       <MDTypography variant="button" fontWeight="medium">
         {row.code && row.cloud_family?.code ? `${row.cloud_family.code}.${row.code}` : "-"}
@@ -456,14 +468,16 @@ function BundlesContent() {
         {row.vcpu || "-"}
       </MDTypography>
     ),
+    vcpu_raw: row.vcpu || 0,
     vram: (
       <MDTypography variant="caption" color="text">
         {row.vram || "-"}
       </MDTypography>
     ),
+    vram_raw: row.vram || 0,
     region_name: (
       <MDTypography variant="caption" color="text">
-        {row.region?.name || "-"}
+        {row.cloud_family?.region?.name || "-"}
       </MDTypography>
     ),
     service_name: (
@@ -517,7 +531,28 @@ function BundlesContent() {
 
   return (
     <>
-      <MDBox display="flex" justifyContent="flex-end" mb={2}>
+      <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+        <TextField
+          placeholder="Search bundles..."
+          size="small"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          sx={{ width: 250 }}
+          InputProps={{
+            startAdornment: (
+              <Icon sx={{ color: "text.secondary", mr: 1 }}>search</Icon>
+            ),
+            endAdornment: searchTerm && (
+              <IconButton
+                size="small"
+                onClick={() => setSearchTerm("")}
+                sx={{ p: 0.5 }}
+              >
+                <Icon sx={{ fontSize: "1rem !important" }}>close</Icon>
+              </IconButton>
+            ),
+          }}
+        />
         <MDButton variant="gradient" color="info" size="small" onClick={handleAddClick}>
           <Icon sx={{ mr: 1 }}>add</Icon>
           Add Bundle
@@ -546,10 +581,11 @@ function BundlesContent() {
               ) : (
                 <DataTable
                   table={{ columns, rows }}
-                  isSorted={false}
+                  isSorted={true}
                   entriesPerPage={false}
                   showTotalEntries={false}
                   noEndBorder
+                  canSearch={false}
                 />
               )}
             </MDBox>
@@ -640,24 +676,24 @@ function BundlesContent() {
                 <FormControl
                   fullWidth
                   margin="normal"
-                  error={editFormTouched.region_id && !!validateRegionId(editFormData.region_id)}
+                  error={editFormTouched.cloud_family_id && !!validateCloudFamilyId(editFormData.cloud_family_id)}
                 >
-                  <InputLabel>Region *</InputLabel>
+                  <InputLabel>Cloud Family *</InputLabel>
                   <Select
-                    value={editFormData.region_id || ""}
-                    onChange={(e) => handleEditFormChange("region_id", e.target.value)}
-                    onBlur={() => setEditFormTouched((prev) => ({ ...prev, region_id: true }))}
-                    label="Region *"
+                    value={editFormData.cloud_family_id || ""}
+                    onChange={(e) => handleEditFormChange("cloud_family_id", e.target.value)}
+                    onBlur={() => setEditFormTouched((prev) => ({ ...prev, cloud_family_id: true }))}
+                    label="Cloud Family *"
                     sx={{ minHeight: 44 }}
                   >
-                    {regions.map((region) => (
-                      <MenuItem key={region.id} value={region.id}>
-                        {region.name}
+                    {cloudFamilies.map((cf) => (
+                      <MenuItem key={cf.id} value={cf.id}>
+                        {cf.code} ({cf.region?.name || "No region"})
                       </MenuItem>
                     ))}
                   </Select>
-                  {editFormTouched.region_id && validateRegionId(editFormData.region_id) && (
-                    <FormHelperText>{validateRegionId(editFormData.region_id)}</FormHelperText>
+                  {editFormTouched.cloud_family_id && validateCloudFamilyId(editFormData.cloud_family_id) && (
+                    <FormHelperText>{validateCloudFamilyId(editFormData.cloud_family_id)}</FormHelperText>
                   )}
                 </FormControl>
               </Grid>
@@ -687,58 +723,29 @@ function BundlesContent() {
                 </FormControl>
               </Grid>
             </Grid>
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <FormControl
-                  fullWidth
-                  margin="normal"
-                  error={editFormTouched.service_type_id && !!validateServiceTypeId(editFormData.service_type_id)}
-                >
-                  <InputLabel>Service Type *</InputLabel>
-                  <Select
-                    value={editFormData.service_type_id || ""}
-                    onChange={(e) => handleEditFormChange("service_type_id", e.target.value)}
-                    onBlur={() => setEditFormTouched((prev) => ({ ...prev, service_type_id: true }))}
-                    label="Service Type *"
-                    sx={{ minHeight: 44 }}
-                  >
-                    {serviceTypes.map((st) => (
-                      <MenuItem key={st.id} value={st.id}>
-                        {st.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                  {editFormTouched.service_type_id && validateServiceTypeId(editFormData.service_type_id) && (
-                    <FormHelperText>{validateServiceTypeId(editFormData.service_type_id)}</FormHelperText>
-                  )}
-                </FormControl>
-              </Grid>
-              <Grid item xs={6}>
-                <FormControl
-                  fullWidth
-                  margin="normal"
-                  error={editFormTouched.cloud_family_id && !!validateCloudFamilyId(editFormData.cloud_family_id)}
-                >
-                  <InputLabel>Cloud Family *</InputLabel>
-                  <Select
-                    value={editFormData.cloud_family_id || ""}
-                    onChange={(e) => handleEditFormChange("cloud_family_id", e.target.value)}
-                    onBlur={() => setEditFormTouched((prev) => ({ ...prev, cloud_family_id: true }))}
-                    label="Cloud Family *"
-                    sx={{ minHeight: 44 }}
-                  >
-                    {cloudFamilies.map((cf) => (
-                      <MenuItem key={cf.id} value={cf.id}>
-                        {cf.code}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                  {editFormTouched.cloud_family_id && validateCloudFamilyId(editFormData.cloud_family_id) && (
-                    <FormHelperText>{validateCloudFamilyId(editFormData.cloud_family_id)}</FormHelperText>
-                  )}
-                </FormControl>
-              </Grid>
-            </Grid>
+            <FormControl
+              fullWidth
+              margin="normal"
+              error={editFormTouched.service_type_id && !!validateServiceTypeId(editFormData.service_type_id)}
+            >
+              <InputLabel>Service Type *</InputLabel>
+              <Select
+                value={editFormData.service_type_id || ""}
+                onChange={(e) => handleEditFormChange("service_type_id", e.target.value)}
+                onBlur={() => setEditFormTouched((prev) => ({ ...prev, service_type_id: true }))}
+                label="Service Type *"
+                sx={{ minHeight: 44 }}
+              >
+                {serviceTypes.map((st) => (
+                  <MenuItem key={st.id} value={st.id}>
+                    {st.name}
+                  </MenuItem>
+                ))}
+              </Select>
+              {editFormTouched.service_type_id && validateServiceTypeId(editFormData.service_type_id) && (
+                <FormHelperText>{validateServiceTypeId(editFormData.service_type_id)}</FormHelperText>
+              )}
+            </FormControl>
           </MDBox>
         </DialogContent>
         <DialogActions>
@@ -810,24 +817,24 @@ function BundlesContent() {
                 <FormControl
                   fullWidth
                   margin="normal"
-                  error={addFormTouched.region_id && !!validateRegionId(addFormData.region_id)}
+                  error={addFormTouched.cloud_family_id && !!validateCloudFamilyId(addFormData.cloud_family_id)}
                 >
-                  <InputLabel>Region *</InputLabel>
+                  <InputLabel>Cloud Family *</InputLabel>
                   <Select
-                    value={addFormData.region_id || ""}
-                    onChange={(e) => handleAddFormChange("region_id", e.target.value)}
-                    onBlur={() => setAddFormTouched((prev) => ({ ...prev, region_id: true }))}
-                    label="Region *"
+                    value={addFormData.cloud_family_id || ""}
+                    onChange={(e) => handleAddFormChange("cloud_family_id", e.target.value)}
+                    onBlur={() => setAddFormTouched((prev) => ({ ...prev, cloud_family_id: true }))}
+                    label="Cloud Family *"
                     sx={{ minHeight: 44 }}
                   >
-                    {regions.map((region) => (
-                      <MenuItem key={region.id} value={region.id}>
-                        {region.name}
+                    {cloudFamilies.map((cf) => (
+                      <MenuItem key={cf.id} value={cf.id}>
+                        {cf.code} ({cf.region?.name || "No region"})
                       </MenuItem>
                     ))}
                   </Select>
-                  {addFormTouched.region_id && validateRegionId(addFormData.region_id) && (
-                    <FormHelperText>{validateRegionId(addFormData.region_id)}</FormHelperText>
+                  {addFormTouched.cloud_family_id && validateCloudFamilyId(addFormData.cloud_family_id) && (
+                    <FormHelperText>{validateCloudFamilyId(addFormData.cloud_family_id)}</FormHelperText>
                   )}
                 </FormControl>
               </Grid>
@@ -857,58 +864,29 @@ function BundlesContent() {
                 </FormControl>
               </Grid>
             </Grid>
-            <Grid container spacing={2}>
-              <Grid item xs={6}>
-                <FormControl
-                  fullWidth
-                  margin="normal"
-                  error={addFormTouched.service_type_id && !!validateServiceTypeId(addFormData.service_type_id)}
-                >
-                  <InputLabel>Service Type *</InputLabel>
-                  <Select
-                    value={addFormData.service_type_id || ""}
-                    onChange={(e) => handleAddFormChange("service_type_id", e.target.value)}
-                    onBlur={() => setAddFormTouched((prev) => ({ ...prev, service_type_id: true }))}
-                    label="Service Type *"
-                    sx={{ minHeight: 44 }}
-                  >
-                    {serviceTypes.map((st) => (
-                      <MenuItem key={st.id} value={st.id}>
-                        {st.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                  {addFormTouched.service_type_id && validateServiceTypeId(addFormData.service_type_id) && (
-                    <FormHelperText>{validateServiceTypeId(addFormData.service_type_id)}</FormHelperText>
-                  )}
-                </FormControl>
-              </Grid>
-              <Grid item xs={6}>
-                <FormControl
-                  fullWidth
-                  margin="normal"
-                  error={addFormTouched.cloud_family_id && !!validateCloudFamilyId(addFormData.cloud_family_id)}
-                >
-                  <InputLabel>Cloud Family *</InputLabel>
-                  <Select
-                    value={addFormData.cloud_family_id || ""}
-                    onChange={(e) => handleAddFormChange("cloud_family_id", e.target.value)}
-                    onBlur={() => setAddFormTouched((prev) => ({ ...prev, cloud_family_id: true }))}
-                    label="Cloud Family *"
-                    sx={{ minHeight: 44 }}
-                  >
-                    {cloudFamilies.map((cf) => (
-                      <MenuItem key={cf.id} value={cf.id}>
-                        {cf.code}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                  {addFormTouched.cloud_family_id && validateCloudFamilyId(addFormData.cloud_family_id) && (
-                    <FormHelperText>{validateCloudFamilyId(addFormData.cloud_family_id)}</FormHelperText>
-                  )}
-                </FormControl>
-              </Grid>
-            </Grid>
+            <FormControl
+              fullWidth
+              margin="normal"
+              error={addFormTouched.service_type_id && !!validateServiceTypeId(addFormData.service_type_id)}
+            >
+              <InputLabel>Service Type *</InputLabel>
+              <Select
+                value={addFormData.service_type_id || ""}
+                onChange={(e) => handleAddFormChange("service_type_id", e.target.value)}
+                onBlur={() => setAddFormTouched((prev) => ({ ...prev, service_type_id: true }))}
+                label="Service Type *"
+                sx={{ minHeight: 44 }}
+              >
+                {serviceTypes.map((st) => (
+                  <MenuItem key={st.id} value={st.id}>
+                    {st.name}
+                  </MenuItem>
+                ))}
+              </Select>
+              {addFormTouched.service_type_id && validateServiceTypeId(addFormData.service_type_id) && (
+                <FormHelperText>{validateServiceTypeId(addFormData.service_type_id)}</FormHelperText>
+              )}
+            </FormControl>
           </MDBox>
         </DialogContent>
         <DialogActions>

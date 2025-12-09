@@ -86,8 +86,43 @@ function DataTable({
   // Set the entries per page value based on the select value
   const setEntriesPerPage = (value) => setPageSize(value);
 
-  // Render the paginations
-  const renderPagination = pageOptions.map((option) => (
+  // Render the paginations with sliding window of 5 pages
+  const getVisiblePages = () => {
+    const totalPages = pageOptions.length;
+    const current = pageIndex;
+    const windowSize = 5; // Show 5 pages at a time
+
+    if (totalPages <= windowSize) {
+      // If total pages <= 5, show all pages without ellipsis
+      return { pages: pageOptions, showLeftEllipsis: false, showRightEllipsis: false };
+    }
+
+    // Calculate the window start and end
+    let windowStart = Math.max(0, current - Math.floor(windowSize / 2));
+    let windowEnd = windowStart + windowSize - 1;
+
+    // Adjust if window goes beyond total pages
+    if (windowEnd >= totalPages) {
+      windowEnd = totalPages - 1;
+      windowStart = Math.max(0, windowEnd - windowSize + 1);
+    }
+
+    const pages = [];
+    for (let i = windowStart; i <= windowEnd; i++) {
+      pages.push(i);
+    }
+
+    // Show left ellipsis if there are pages before the window
+    const showLeftEllipsis = windowStart > 0;
+    // Show right ellipsis if there are pages after the window
+    const showRightEllipsis = windowEnd < totalPages - 1;
+
+    return { pages, showLeftEllipsis, showRightEllipsis };
+  };
+
+  const { pages: visiblePages, showLeftEllipsis, showRightEllipsis } = getVisiblePages();
+
+  const renderPagination = visiblePages.map((option) => (
     <MDPagination
       item
       key={option}
@@ -241,27 +276,55 @@ function DataTable({
             variant={pagination.variant ? pagination.variant : "gradient"}
             color={pagination.color ? pagination.color : "info"}
           >
-            {canPreviousPage && (
-              <MDPagination item onClick={() => previousPage()}>
-                <Icon sx={{ fontWeight: "bold" }}>chevron_left</Icon>
-              </MDPagination>
-            )}
-            {renderPagination.length > 6 ? (
-              <MDBox width="5rem" mx={1}>
-                <MDInput
-                  inputProps={{ type: "number", min: 1, max: customizedPageOptions.length }}
-                  value={customizedPageOptions[pageIndex]}
-                  onChange={(handleInputPagination, handleInputPaginationValue)}
-                />
+            {/* First page button */}
+            <MDPagination item onClick={() => gotoPage(0)} disabled={!canPreviousPage}>
+              <Icon sx={{ fontWeight: "bold" }}>first_page</Icon>
+            </MDPagination>
+            {/* Previous page button */}
+            <MDPagination item onClick={() => previousPage()} disabled={!canPreviousPage}>
+              <Icon sx={{ fontWeight: "bold" }}>chevron_left</Icon>
+            </MDPagination>
+            {/* Left ellipsis */}
+            {showLeftEllipsis && (
+              <MDBox
+                sx={{
+                  width: 36,
+                  height: 36,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "text.secondary",
+                  fontSize: "0.875rem",
+                }}
+              >
+                ...
               </MDBox>
-            ) : (
-              renderPagination
             )}
-            {canNextPage && (
-              <MDPagination item onClick={() => nextPage()}>
-                <Icon sx={{ fontWeight: "bold" }}>chevron_right</Icon>
-              </MDPagination>
+            {renderPagination}
+            {/* Right ellipsis */}
+            {showRightEllipsis && (
+              <MDBox
+                sx={{
+                  width: 36,
+                  height: 36,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "text.secondary",
+                  fontSize: "0.875rem",
+                }}
+              >
+                ...
+              </MDBox>
             )}
+            {/* Next page button */}
+            <MDPagination item onClick={() => nextPage()} disabled={!canNextPage}>
+              <Icon sx={{ fontWeight: "bold" }}>chevron_right</Icon>
+            </MDPagination>
+            {/* Last page button */}
+            <MDPagination item onClick={() => gotoPage(pageOptions.length - 1)} disabled={!canNextPage}>
+              <Icon sx={{ fontWeight: "bold" }}>last_page</Icon>
+            </MDPagination>
           </MDPagination>
         )}
       </MDBox>

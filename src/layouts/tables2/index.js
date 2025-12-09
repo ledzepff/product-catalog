@@ -449,7 +449,7 @@ function Services() {
               <MDBox
                 mx={2}
                 mt={-3}
-                py={3}
+                py={1}
                 px={2}
                 variant="gradient"
                 bgColor="info"

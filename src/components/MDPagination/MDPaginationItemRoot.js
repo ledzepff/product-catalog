@@ -19,14 +19,14 @@ import { styled } from "@mui/material/styles";
 // Material Dashboard 2 React components
 import MDButton from "components/MDButton";
 
-export default styled(MDButton)(({ theme, ownerState }) => {
+export default styled(MDButton)(({ theme, ownerState, disabled }) => {
   const { borders, functions, typography, palette } = theme;
   const { variant, paginationSize, active } = ownerState;
 
   const { borderColor } = borders;
   const { pxToRem } = functions;
   const { fontWeightRegular, size: fontSize } = typography;
-  const { light } = palette;
+  const { light, grey } = palette;
 
   // width, height, minWidth and minHeight values
   let sizeValue = pxToRem(36);
@@ -40,23 +40,30 @@ export default styled(MDButton)(({ theme, ownerState }) => {
   return {
     borderColor,
     margin: `0 ${pxToRem(2)}`,
-    pointerEvents: active ? "none" : "auto",
+    pointerEvents: active || disabled ? "none" : "auto",
     fontWeight: fontWeightRegular,
     fontSize: fontSize.sm,
     width: sizeValue,
     minWidth: sizeValue,
     height: sizeValue,
     minHeight: sizeValue,
+    opacity: disabled ? 0.5 : 1,
+    cursor: disabled ? "not-allowed" : "pointer",
 
     "&:hover, &:focus, &:active": {
       transform: "none",
       boxShadow: (variant !== "gradient" || variant !== "contained") && "none !important",
-      opacity: "1 !important",
+      opacity: disabled ? "0.5 !important" : "1 !important",
     },
 
     "&:hover": {
-      backgroundColor: light.main,
+      backgroundColor: disabled ? "transparent" : light.main,
       borderColor,
+    },
+
+    "&.Mui-disabled": {
+      opacity: 0.5,
+      color: grey[400],
     },
   };
 });

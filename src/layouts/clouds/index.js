@@ -12,6 +12,11 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogContentText from "@mui/material/DialogContentText";
 import DialogActions from "@mui/material/DialogActions";
 import TextField from "@mui/material/TextField";
+import FormControl from "@mui/material/FormControl";
+import InputLabel from "@mui/material/InputLabel";
+import Select from "@mui/material/Select";
+import MenuItem from "@mui/material/MenuItem";
+import FormHelperText from "@mui/material/FormHelperText";
 
 // Material Dashboard 2 React components
 import MDBox from "components/MDBox";
@@ -32,6 +37,9 @@ function Clouds() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Lookup data
+  const [regions, setRegions] = useState([]);
+
   // Delete confirmation state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [rowToDelete, setRowToDelete] = useState(null);
@@ -44,6 +52,7 @@ function Clouds() {
   const [saving, setSaving] = useState(false);
   const [editFormTouched, setEditFormTouched] = useState({
     code: false,
+    region_id: false,
     cpu_model: false,
     sockets: false,
     pcpu: false,
@@ -57,6 +66,7 @@ function Clouds() {
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [addFormData, setAddFormData] = useState({
     code: "",
+    region_id: "",
     cpu_model: "",
     sockets: "",
     pcpu: "",
@@ -68,6 +78,7 @@ function Clouds() {
   const [adding, setAdding] = useState(false);
   const [addFormTouched, setAddFormTouched] = useState({
     code: false,
+    region_id: false,
     cpu_model: false,
     sockets: false,
     pcpu: false,
@@ -77,12 +88,31 @@ function Clouds() {
     description: false,
   });
 
+  async function fetchLookupData() {
+    try {
+      const { data: regionsData, error: regionsError } = await supabase
+        .from("region")
+        .select("id, name")
+        .eq("is_active", true)
+        .order("name");
+
+      if (regionsError) throw regionsError;
+
+      setRegions(regionsData || []);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function fetchData() {
     try {
       setLoading(true);
       const { data: tableData, error: fetchError } = await supabase
         .from("cloud_family")
-        .select("*")
+        .select(`
+          *,
+          region:region(id, name)
+        `)
         .eq("is_active", true)
         .order("created_at", { ascending: false });
 
@@ -99,6 +129,7 @@ function Clouds() {
   }
 
   useEffect(() => {
+    fetchLookupData();
     fetchData();
   }, []);
 
@@ -146,6 +177,7 @@ function Clouds() {
     setEditingRow(row);
     setEditFormData({
       code: row.code || "",
+      region_id: row.region_id || "",
       cpu_model: row.cpu_model || "",
       sockets: row.sockets?.toString() || "",
       pcpu: row.pcpu?.toString() || "",
@@ -156,6 +188,7 @@ function Clouds() {
     });
     setEditFormTouched({
       code: false,
+      region_id: false,
       cpu_model: false,
       sockets: false,
       pcpu: false,
@@ -173,6 +206,7 @@ function Clouds() {
     setEditFormData({});
     setEditFormTouched({
       code: false,
+      region_id: false,
       cpu_model: false,
       sockets: false,
       pcpu: false,
@@ -197,6 +231,7 @@ function Clouds() {
       setSaving(true);
       const updateData = {
         code: editFormData.code,
+        region_id: editFormData.region_id,
         cpu_model: editFormData.cpu_model || null,
         sockets: parseInt(editFormData.sockets, 10),
         pcpu: parseInt(editFormData.pcpu, 10),
@@ -230,6 +265,7 @@ function Clouds() {
   const handleAddClick = () => {
     setAddFormData({
       code: "",
+      region_id: "",
       cpu_model: "",
       sockets: "",
       pcpu: "",
@@ -240,6 +276,7 @@ function Clouds() {
     });
     setAddFormTouched({
       code: false,
+      region_id: false,
       cpu_model: false,
       sockets: false,
       pcpu: false,
@@ -255,6 +292,7 @@ function Clouds() {
     setAddDialogOpen(false);
     setAddFormData({
       code: "",
+      region_id: "",
       cpu_model: "",
       sockets: "",
       pcpu: "",
@@ -265,6 +303,7 @@ function Clouds() {
     });
     setAddFormTouched({
       code: false,
+      region_id: false,
       cpu_model: false,
       sockets: false,
       pcpu: false,
@@ -287,6 +326,7 @@ function Clouds() {
       setAdding(true);
       const insertData = {
         code: addFormData.code,
+        region_id: addFormData.region_id,
         cpu_model: addFormData.cpu_model || null,
         sockets: parseInt(addFormData.sockets, 10),
         pcpu: parseInt(addFormData.pcpu, 10),
@@ -320,6 +360,13 @@ function Clouds() {
     }
     if (code.trim().length < 2) {
       return "Code must be at least 2 characters long";
+    }
+    return "";
+  };
+
+  const validateRegionId = (regionId) => {
+    if (!regionId) {
+      return "Region is required";
     }
     return "";
   };
@@ -394,6 +441,7 @@ function Clouds() {
   const isAddFormValid = () => {
     return (
       !validateCode(addFormData.code) &&
+      !validateRegionId(addFormData.region_id) &&
       !validateSockets(addFormData.sockets) &&
       !validatePcpu(addFormData.pcpu) &&
       !validatePram(addFormData.pram) &&
@@ -406,6 +454,7 @@ function Clouds() {
   const isEditFormValid = () => {
     return (
       !validateCode(editFormData.code) &&
+      !validateRegionId(editFormData.region_id) &&
       !validateSockets(editFormData.sockets) &&
       !validatePcpu(editFormData.pcpu) &&
       !validatePram(editFormData.pram) &&
@@ -418,14 +467,15 @@ function Clouds() {
   // Define columns for DataTable
   const columns = [
     { Header: "code", accessor: "code", width: "10%", align: "left" },
-    { Header: "cpu model", accessor: "cpu_model", width: "15%", align: "left" },
-    { Header: "sockets", accessor: "sockets", width: "7%", align: "center" },
-    { Header: "pcpu", accessor: "pcpu", width: "7%", align: "center" },
-    { Header: "pram", accessor: "pram", width: "7%", align: "center" },
-    { Header: "clock (GHz)", accessor: "clockspeed", width: "9%", align: "center" },
-    { Header: "network bw", accessor: "networkbw", width: "9%", align: "center" },
-    { Header: "description", accessor: "description", width: "21%", align: "left" },
-    { Header: "actions", accessor: "actions", width: "15%", align: "center" },
+    { Header: "region", accessor: "region", width: "12%", align: "left" },
+    { Header: "cpu model", accessor: "cpu_model", width: "12%", align: "left" },
+    { Header: "sockets", accessor: "sockets", width: "6%", align: "center" },
+    { Header: "pcpu", accessor: "pcpu", width: "6%", align: "center" },
+    { Header: "pram", accessor: "pram", width: "6%", align: "center" },
+    { Header: "clock (GHz)", accessor: "clockspeed", width: "8%", align: "center" },
+    { Header: "network bw", accessor: "networkbw", width: "8%", align: "center" },
+    { Header: "description", accessor: "description", width: "18%", align: "left" },
+    { Header: "actions", accessor: "actions", width: "14%", align: "center" },
   ];
 
   // Transform data to rows format for DataTable
@@ -433,6 +483,11 @@ function Clouds() {
     code: (
       <MDTypography variant="button" fontWeight="medium">
         {row.code || "-"}
+      </MDTypography>
+    ),
+    region: (
+      <MDTypography variant="caption" color="text">
+        {row.region?.name || "-"}
       </MDTypography>
     ),
     cpu_model: (
@@ -514,7 +569,7 @@ function Clouds() {
               <MDBox
                 mx={2}
                 mt={-3}
-                py={3}
+                py={1}
                 px={2}
                 variant="gradient"
                 bgColor="info"
@@ -611,6 +666,29 @@ function Clouds() {
               error={editFormTouched.code && !!validateCode(editFormData.code)}
               helperText={editFormTouched.code && validateCode(editFormData.code)}
             />
+            <FormControl
+              fullWidth
+              margin="normal"
+              error={editFormTouched.region_id && !!validateRegionId(editFormData.region_id)}
+            >
+              <InputLabel>Region *</InputLabel>
+              <Select
+                value={editFormData.region_id || ""}
+                onChange={(e) => handleEditFormChange("region_id", e.target.value)}
+                onBlur={() => setEditFormTouched((prev) => ({ ...prev, region_id: true }))}
+                label="Region *"
+                sx={{ minHeight: 44 }}
+              >
+                {regions.map((region) => (
+                  <MenuItem key={region.id} value={region.id}>
+                    {region.name}
+                  </MenuItem>
+                ))}
+              </Select>
+              {editFormTouched.region_id && validateRegionId(editFormData.region_id) && (
+                <FormHelperText>{validateRegionId(editFormData.region_id)}</FormHelperText>
+              )}
+            </FormControl>
             <TextField
               fullWidth
               label="CPU Model"
@@ -753,6 +831,29 @@ function Clouds() {
               error={addFormTouched.code && !!validateCode(addFormData.code)}
               helperText={addFormTouched.code && validateCode(addFormData.code)}
             />
+            <FormControl
+              fullWidth
+              margin="normal"
+              error={addFormTouched.region_id && !!validateRegionId(addFormData.region_id)}
+            >
+              <InputLabel>Region *</InputLabel>
+              <Select
+                value={addFormData.region_id || ""}
+                onChange={(e) => handleAddFormChange("region_id", e.target.value)}
+                onBlur={() => setAddFormTouched((prev) => ({ ...prev, region_id: true }))}
+                label="Region *"
+                sx={{ minHeight: 44 }}
+              >
+                {regions.map((region) => (
+                  <MenuItem key={region.id} value={region.id}>
+                    {region.name}
+                  </MenuItem>
+                ))}
+              </Select>
+              {addFormTouched.region_id && validateRegionId(addFormData.region_id) && (
+                <FormHelperText>{validateRegionId(addFormData.region_id)}</FormHelperText>
+              )}
+            </FormControl>
             <TextField
               fullWidth
               label="CPU Model"
