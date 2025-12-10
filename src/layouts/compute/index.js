@@ -21,6 +21,7 @@ import Footer from "examples/Footer";
 import BundlesContent from "layouts/bundles/BundlesContent";
 import DedicatedHostsContent from "layouts/dedicatedhosts/DedicatedHostsContent";
 import BareMetalsContent from "layouts/baremetals/BareMetalsContent";
+import HpcContent from "layouts/hpc/HpcContent";
 
 function TabPanel({ children, value, index, ...other }) {
   return (
@@ -116,6 +117,12 @@ function Compute() {
                       label="Bare Metal"
                       {...a11yProps(2)}
                     />
+                    <Tab
+                      icon={<Icon sx={{ mr: 1 }}>hub</Icon>}
+                      iconPosition="start"
+                      label="HPC"
+                      {...a11yProps(3)}
+                    />
                   </Tabs>
                 </MDBox>
 
@@ -129,6 +136,10 @@ function Compute() {
 
                 <TabPanel value={tabValue} index={2}>
                   <BareMetalsContent />
+                </TabPanel>
+
+                <TabPanel value={tabValue} index={3}>
+                  <HpcContent />
                 </TabPanel>
               </MDBox>
             </Card>

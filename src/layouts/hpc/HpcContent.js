@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useState, useEffect } from "react";
 
 // @mui material components
@@ -30,12 +29,11 @@ import DataTable from "examples/Tables/DataTable";
 // Supabase client
 import { supabase } from "supabaseClient";
 
-function DedicatedHostsContent() {
+function HpcContent() {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [hypervisorTypes, setHypervisorTypes] = useState([]);
   const [regionFilter, setRegionFilter] = useState("");
   const [coresFilter, setCoresFilter] = useState("");
   const [ramFilter, setRamFilter] = useState("");
@@ -60,7 +58,6 @@ function DedicatedHostsContent() {
     region_id: false,
     service_id: false,
     service_type_id: false,
-    sockets: false,
     cores: false,
     ram: false,
     networkbw: false,
@@ -75,11 +72,11 @@ function DedicatedHostsContent() {
     service_type_id: "",
     cpu_model: "",
     clockspeed: "",
-    sockets: "",
     cores: "",
     ram: "",
     networkbw: "",
-    hypervisor_type: "",
+    gpu_model: "",
+    gpu_count: "",
   });
   const [adding, setAdding] = useState(false);
   const [addFormTouched, setAddFormTouched] = useState({
@@ -87,23 +84,42 @@ function DedicatedHostsContent() {
     region_id: false,
     service_id: false,
     service_type_id: false,
-    sockets: false,
     cores: false,
     ram: false,
     networkbw: false,
   });
 
+  async function fetchLookupData() {
+    try {
+      const [servicesRes, serviceTypesRes, regionsRes] = await Promise.all([
+        supabase.from("service").select("id, name").eq("is_active", true).order("name"),
+        supabase.from("service_type").select("id, name").eq("is_active", true).order("name"),
+        supabase.from("region").select("id, name").eq("is_active", true).order("name"),
+      ]);
+
+      if (servicesRes.error) throw servicesRes.error;
+      if (serviceTypesRes.error) throw serviceTypesRes.error;
+      if (regionsRes.error) throw regionsRes.error;
+
+      setServices(servicesRes.data || []);
+      setServiceTypes(serviceTypesRes.data || []);
+      setRegions(regionsRes.data || []);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function fetchData() {
     try {
       setLoading(true);
       const { data: tableData, error: fetchError } = await supabase
-        .from("dedicated_hosts")
+        .from("hpc")
         .select(
           `
           *,
-          region:region_id(id, name),
-          service:service_id(id, name),
-          service_type:service_type_id(id, name)
+          region:region(id, name),
+          service:service(id, name),
+          service_type:service_type(id, name)
         `
         )
         .eq("is_active", true)
@@ -121,71 +137,12 @@ function DedicatedHostsContent() {
     }
   }
 
-  async function fetchLookupData() {
-    try {
-      // Fetch services
-      const { data: servicesData } = await supabase
-        .from("service")
-        .select("id, name")
-        .eq("is_active", true)
-        .order("name");
-      setServices(servicesData || []);
-
-      // Fetch service types
-      const { data: serviceTypesData } = await supabase
-        .from("service_type")
-        .select("id, name")
-        .eq("is_active", true)
-        .order("name");
-      setServiceTypes(serviceTypesData || []);
-
-      // Fetch regions
-      const { data: regionsData } = await supabase
-        .from("region")
-        .select("id, name")
-        .eq("is_active", true)
-        .order("name");
-      setRegions(regionsData || []);
-
-      // Fetch HypervisorTypes enum values
-      // The function returns JSON directly: array_to_json(enum_range(NULL::enum_type))
-      // Note: Function must use %I format specifier to handle case-sensitive enum names
-      const { data: enumData, error: enumError } = await supabase.rpc("get_enum_values", {
-        enum_type: "HypervisorTypes",
-      });
-      console.log("HypervisorTypes enum data:", enumData, "type:", typeof enumData);
-      console.log("HypervisorTypes enum error:", enumError);
-      if (enumError) {
-        console.error("Error fetching HypervisorTypes enum:", enumError);
-      } else if (enumData) {
-        // The function returns JSON, which Supabase parses automatically
-        // It could be an array of strings directly, or might need parsing
-        let values = [];
-        if (Array.isArray(enumData)) {
-          // Direct array of strings
-          values = enumData;
-        } else if (typeof enumData === "string") {
-          // JSON string that needs parsing
-          try {
-            values = JSON.parse(enumData);
-          } catch (e) {
-            console.error("Failed to parse enum JSON:", e);
-          }
-        }
-        console.log("Mapped HypervisorTypes values:", values);
-        setHypervisorTypes(values.filter((v) => typeof v === "string" && v));
-      }
-    } catch (err) {
-      console.error("Error fetching lookup data:", err);
-    }
-  }
-
   useEffect(() => {
-    fetchData();
     fetchLookupData();
+    fetchData();
   }, []);
 
-  // Delete handlers
+  // Delete handlers (soft delete)
   const handleDeleteClick = (row) => {
     setRowToDelete(row);
     setDeleteDialogOpen(true);
@@ -201,8 +158,8 @@ function DedicatedHostsContent() {
 
     try {
       setDeleting(true);
-      const { error: deleteError } = await supabase
-        .from("dedicated_hosts")
+      const { error: updateError } = await supabase
+        .from("hpc")
         .update({
           is_active: false,
           deleted_at: new Date().toISOString(),
@@ -210,8 +167,8 @@ function DedicatedHostsContent() {
         })
         .eq("id", rowToDelete.id);
 
-      if (deleteError) {
-        throw deleteError;
+      if (updateError) {
+        throw updateError;
       }
 
       await fetchData();
@@ -233,19 +190,18 @@ function DedicatedHostsContent() {
       service_id: row.service_id || "",
       service_type_id: row.service_type_id || "",
       cpu_model: row.cpu_model || "",
-      clockspeed: row.clockspeed || "",
-      sockets: row.sockets || "",
-      cores: row.cores || "",
-      ram: row.ram || "",
-      networkbw: row.networkbw || "",
-      hypervisor_type: row.hypervisor_type || "",
+      clockspeed: row.clockspeed?.toString() || "",
+      cores: row.cores?.toString() || "",
+      ram: row.ram?.toString() || "",
+      networkbw: row.networkbw?.toString() || "",
+      gpu_model: row.gpu_model || "",
+      gpu_count: row.gpu_count?.toString() || "",
     });
     setEditFormTouched({
       code: false,
       region_id: false,
       service_id: false,
       service_type_id: false,
-      sockets: false,
       cores: false,
       ram: false,
       networkbw: false,
@@ -262,7 +218,6 @@ function DedicatedHostsContent() {
       region_id: false,
       service_id: false,
       service_type_id: false,
-      sockets: false,
       cores: false,
       ram: false,
       networkbw: false,
@@ -288,16 +243,16 @@ function DedicatedHostsContent() {
         service_type_id: editFormData.service_type_id,
         cpu_model: editFormData.cpu_model || null,
         clockspeed: editFormData.clockspeed ? parseFloat(editFormData.clockspeed) : null,
-        sockets: editFormData.sockets ? parseInt(editFormData.sockets, 10) : null,
         cores: editFormData.cores ? parseInt(editFormData.cores, 10) : null,
         ram: editFormData.ram ? parseInt(editFormData.ram, 10) : null,
         networkbw: editFormData.networkbw ? parseInt(editFormData.networkbw, 10) : null,
-        hypervisor_type: editFormData.hypervisor_type || null,
+        gpu_model: editFormData.gpu_model || null,
+        gpu_count: editFormData.gpu_count ? parseInt(editFormData.gpu_count, 10) : null,
         updated_at: new Date().toISOString(),
       };
 
       const { error: updateError } = await supabase
-        .from("dedicated_hosts")
+        .from("hpc")
         .update(updateData)
         .eq("id", editingRow.id);
 
@@ -323,18 +278,17 @@ function DedicatedHostsContent() {
       service_type_id: "",
       cpu_model: "",
       clockspeed: "",
-      sockets: "",
       cores: "",
       ram: "",
       networkbw: "",
-      hypervisor_type: "",
+      gpu_model: "",
+      gpu_count: "",
     });
     setAddFormTouched({
       code: false,
       region_id: false,
       service_id: false,
       service_type_id: false,
-      sockets: false,
       cores: false,
       ram: false,
       networkbw: false,
@@ -351,18 +305,17 @@ function DedicatedHostsContent() {
       service_type_id: "",
       cpu_model: "",
       clockspeed: "",
-      sockets: "",
       cores: "",
       ram: "",
       networkbw: "",
-      hypervisor_type: "",
+      gpu_model: "",
+      gpu_count: "",
     });
     setAddFormTouched({
       code: false,
       region_id: false,
       service_id: false,
       service_type_id: false,
-      sockets: false,
       cores: false,
       ram: false,
       networkbw: false,
@@ -386,16 +339,17 @@ function DedicatedHostsContent() {
         service_type_id: addFormData.service_type_id,
         cpu_model: addFormData.cpu_model || null,
         clockspeed: addFormData.clockspeed ? parseFloat(addFormData.clockspeed) : null,
-        sockets: addFormData.sockets ? parseInt(addFormData.sockets, 10) : null,
         cores: addFormData.cores ? parseInt(addFormData.cores, 10) : null,
         ram: addFormData.ram ? parseInt(addFormData.ram, 10) : null,
         networkbw: addFormData.networkbw ? parseInt(addFormData.networkbw, 10) : null,
-        hypervisor_type: addFormData.hypervisor_type || null,
+        gpu_model: addFormData.gpu_model || null,
+        gpu_count: addFormData.gpu_count ? parseInt(addFormData.gpu_count, 10) : null,
         is_active: true,
+        created_at: new Date().toISOString(),
         created_by: "admin",
       };
 
-      const { error: insertError } = await supabase.from("dedicated_hosts").insert([insertData]);
+      const { error: insertError } = await supabase.from("hpc").insert(insertData);
 
       if (insertError) {
         throw insertError;
@@ -410,61 +364,67 @@ function DedicatedHostsContent() {
     }
   };
 
-  // Validation functions
-  const validateCode = (value) => {
-    if (!value || !value.trim()) {
+  // Validation helpers
+  const validateCode = (code) => {
+    if (!code || code.trim().length === 0) {
       return "Code is required";
+    }
+    if (code.trim().length < 3) {
+      return "Code must be at least 3 characters long";
     }
     return "";
   };
 
-  const validateRegionId = (value) => {
-    if (!value) {
+  const validateRegionId = (regionId) => {
+    if (!regionId) {
       return "Region is required";
     }
     return "";
   };
 
-  const validateServiceId = (value) => {
-    if (!value) {
+  const validateServiceId = (serviceId) => {
+    if (!serviceId) {
       return "Service is required";
     }
     return "";
   };
 
-  const validateServiceTypeId = (value) => {
-    if (!value) {
+  const validateServiceTypeId = (serviceTypeId) => {
+    if (!serviceTypeId) {
       return "Service Type is required";
     }
     return "";
   };
 
-  const validateCores = (value) => {
-    if (!value) {
+  const validateCores = (cores) => {
+    if (!cores || cores.toString().trim().length === 0) {
       return "Cores is required";
     }
-    if (parseInt(value, 10) <= 0) {
-      return "Cores must be positive";
+    const num = parseInt(cores, 10);
+    if (Number.isNaN(num) || num <= 0) {
+      return "Cores must be a positive integer";
     }
     return "";
   };
 
-  const validateRam = (value) => {
-    if (!value) {
+  const validateRam = (ram) => {
+    if (!ram || ram.toString().trim().length === 0) {
       return "RAM is required";
     }
-    if (parseInt(value, 10) <= 0) {
-      return "RAM must be positive";
+    const num = parseInt(ram, 10);
+    if (Number.isNaN(num) || num <= 0) {
+      return "RAM must be a positive integer";
     }
     return "";
   };
 
-  const validateNetworkbw = (value) => {
-    if (!value) {
+  const validateNetworkbw = (networkbw) => {
+    if (!networkbw || networkbw.toString().trim().length === 0) {
       return "Network BW is required";
     }
-    if (parseInt(value, 10) <= 0) {
-      return "Network BW must be positive";
+    const num = parseInt(networkbw, 10);
+    if (Number.isNaN(num) || num <= 0) {
+      return "Network BW must be a positive integer";
     }
     return "";
   };
@@ -493,10 +453,10 @@ function DedicatedHostsContent() {
     );
   };
 
-  // Filter data based on search term and filters
+  // Filter data based on search term, region filter, cores filter, and ram filter
   const filteredData = data.filter((row) => {
     // Apply region filter
-    if (regionFilter && row.region_id !== regionFilter) {
+    if (regionFilter && row.region?.id !== regionFilter) {
       return false;
     }
 
@@ -516,16 +476,18 @@ function DedicatedHostsContent() {
       }
     }
 
-    // Apply search filter
+    // Then apply search filter
     if (!searchTerm.trim()) return true;
     const search = searchTerm.toLowerCase();
     return (
       (row.code && row.code.toLowerCase().includes(search)) ||
       (row.cpu_model && row.cpu_model.toLowerCase().includes(search)) ||
+      (row.gpu_model && row.gpu_model.toLowerCase().includes(search)) ||
+      (row.cores && row.cores.toString().includes(search)) ||
+      (row.ram && row.ram.toString().includes(search)) ||
       (row.region?.name && row.region.name.toLowerCase().includes(search)) ||
       (row.service?.name && row.service.name.toLowerCase().includes(search)) ||
-      (row.service_type?.name && row.service_type.name.toLowerCase().includes(search)) ||
-      (row.hypervisor_type && row.hypervisor_type.toLowerCase().includes(search))
+      (row.service_type?.name && row.service_type.name.toLowerCase().includes(search))
     );
   });
 
@@ -533,7 +495,7 @@ function DedicatedHostsContent() {
   const columns = [
     { Header: "code", accessor: "code", width: "10%", align: "left" },
     { Header: "region", accessor: "region_name", width: "10%", align: "left" },
-    { Header: "cpu model", accessor: "cpu_model", width: "10%", align: "left" },
+    { Header: "cpu model", accessor: "cpu_model", width: "12%", align: "left" },
     {
       Header: "clock (GHz)",
       accessor: "clockspeed",
@@ -542,18 +504,6 @@ function DedicatedHostsContent() {
       sortType: (rowA, rowB) => {
         const a = rowA.original.clockspeed_raw || 0;
         const b = rowB.original.clockspeed_raw || 0;
-        return a - b;
-      },
-    },
-    { Header: "hypervisor", accessor: "hypervisor_type", width: "8%", align: "center" },
-    {
-      Header: "sockets",
-      accessor: "sockets",
-      width: "6%",
-      align: "center",
-      sortType: (rowA, rowB) => {
-        const a = rowA.original.sockets_raw || 0;
-        const b = rowB.original.sockets_raw || 0;
         return a - b;
       },
     },
@@ -579,20 +529,21 @@ function DedicatedHostsContent() {
         return a - b;
       },
     },
+    { Header: "network bw", accessor: "networkbw", width: "8%", align: "center" },
+    { Header: "gpu model", accessor: "gpu_model", width: "12%", align: "left" },
     {
-      Header: "network bw",
-      accessor: "networkbw",
-      width: "8%",
+      Header: "gpu count",
+      accessor: "gpu_count",
+      width: "6%",
       align: "center",
       sortType: (rowA, rowB) => {
-        const a = rowA.original.networkbw_raw || 0;
-        const b = rowB.original.networkbw_raw || 0;
+        const a = rowA.original.gpu_count_raw || 0;
+        const b = rowB.original.gpu_count_raw || 0;
         return a - b;
       },
     },
     { Header: "service", accessor: "service_name", width: "10%", align: "left" },
-    { Header: "type", accessor: "service_type_name", width: "10%", align: "left" },
-    { Header: "actions", accessor: "actions", width: "10%", align: "center" },
+    { Header: "actions", accessor: "actions", width: "8%", align: "center" },
   ];
 
   // Transform data to rows format for DataTable
@@ -618,17 +569,6 @@ function DedicatedHostsContent() {
       </MDTypography>
     ),
     clockspeed_raw: row.clockspeed || 0,
-    hypervisor_type: (
-      <MDTypography variant="caption" color="text">
-        {row.hypervisor_type || "-"}
-      </MDTypography>
-    ),
-    sockets: (
-      <MDTypography variant="caption" color="text">
-        {row.sockets || "-"}
-      </MDTypography>
-    ),
-    sockets_raw: row.sockets || 0,
     cores: (
       <MDTypography variant="caption" color="text">
         {row.cores || "-"}
@@ -646,15 +586,20 @@ function DedicatedHostsContent() {
         {row.networkbw || "-"}
       </MDTypography>
     ),
-    networkbw_raw: row.networkbw || 0,
+    gpu_model: (
+      <MDTypography variant="caption" color="text">
+        {row.gpu_model || "-"}
+      </MDTypography>
+    ),
+    gpu_count: (
+      <MDTypography variant="caption" color="text">
+        {row.gpu_count || "-"}
+      </MDTypography>
+    ),
+    gpu_count_raw: row.gpu_count || 0,
     service_name: (
       <MDTypography variant="caption" color="text">
         {row.service?.name || "-"}
-      </MDTypography>
-    ),
-    service_type_name: (
-      <MDTypography variant="caption" color="text">
-        {row.service_type?.name || "-"}
       </MDTypography>
     ),
     actions: (
@@ -696,15 +641,21 @@ function DedicatedHostsContent() {
       <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={2}>
         <MDBox display="flex" alignItems="center" gap={2}>
           <TextField
-            placeholder="Search dedicated hosts..."
+            placeholder="Search HPC..."
             size="small"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             sx={{ width: 250 }}
             InputProps={{
-              startAdornment: <Icon sx={{ color: "text.secondary", mr: 1 }}>search</Icon>,
+              startAdornment: (
+                <Icon sx={{ color: "text.secondary", mr: 1 }}>search</Icon>
+              ),
               endAdornment: searchTerm && (
-                <IconButton size="small" onClick={() => setSearchTerm("")} sx={{ p: 0.5 }}>
+                <IconButton
+                  size="small"
+                  onClick={() => setSearchTerm("")}
+                  sx={{ p: 0.5 }}
+                >
                   <Icon sx={{ fontSize: "1rem !important" }}>close</Icon>
                 </IconButton>
               ),
@@ -735,7 +686,11 @@ function DedicatedHostsContent() {
             InputProps={{
               inputProps: { min: 1 },
               endAdornment: coresFilter && (
-                <IconButton size="small" onClick={() => setCoresFilter("")} sx={{ p: 0.5 }}>
+                <IconButton
+                  size="small"
+                  onClick={() => setCoresFilter("")}
+                  sx={{ p: 0.5 }}
+                >
                   <Icon sx={{ fontSize: "1rem !important" }}>close</Icon>
                 </IconButton>
               ),
@@ -751,7 +706,11 @@ function DedicatedHostsContent() {
             InputProps={{
               inputProps: { min: 1 },
               endAdornment: ramFilter && (
-                <IconButton size="small" onClick={() => setRamFilter("")} sx={{ p: 0.5 }}>
+                <IconButton
+                  size="small"
+                  onClick={() => setRamFilter("")}
+                  sx={{ p: 0.5 }}
+                >
                   <Icon sx={{ fontSize: "1rem !important" }}>close</Icon>
                 </IconButton>
               ),
@@ -760,7 +719,7 @@ function DedicatedHostsContent() {
         </MDBox>
         <MDButton variant="gradient" color="info" size="small" onClick={handleAddClick}>
           <Icon sx={{ mr: 1 }}>add</Icon>
-          Add Dedicated Host
+          Add HPC
         </MDButton>
       </MDBox>
       <Grid container spacing={3}>
@@ -780,7 +739,7 @@ function DedicatedHostsContent() {
               ) : data.length === 0 ? (
                 <MDBox px={3} pb={3}>
                   <MDTypography variant="body2" color="text">
-                    No dedicated hosts found. Click &quot;Add Dedicated Host&quot; to create one.
+                    No HPC entries found. Click &quot;Add HPC&quot; to create one.
                   </MDTypography>
                 </MDBox>
               ) : (
@@ -808,8 +767,8 @@ function DedicatedHostsContent() {
         <DialogTitle id="delete-dialog-title">Confirm Delete</DialogTitle>
         <DialogContent>
           <DialogContentText id="delete-dialog-description">
-            Are you sure you want to delete &quot;{rowToDelete?.code}&quot;? This action cannot be
-            undone.
+            Are you sure you want to delete HPC &quot;{rowToDelete?.code}&quot;? This action
+            cannot be undone.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -823,10 +782,16 @@ function DedicatedHostsContent() {
       </Dialog>
 
       {/* Edit Modal Dialog */}
-      <Dialog open={editDialogOpen} onClose={handleEditClose} maxWidth="md" fullWidth>
-        <DialogTitle>Edit Dedicated Host</DialogTitle>
+      <Dialog
+        open={editDialogOpen}
+        onClose={handleEditClose}
+        aria-labelledby="edit-dialog-title"
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle id="edit-dialog-title">Edit HPC</DialogTitle>
         <DialogContent>
-          <MDBox pt={1}>
+          <MDBox pt={2}>
             <Grid container spacing={2}>
               <Grid item xs={6}>
                 <TextField
@@ -891,38 +856,6 @@ function DedicatedHostsContent() {
                 />
               </Grid>
               <Grid item xs={4}>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel>Hypervisor Type</InputLabel>
-                  <Select
-                    value={editFormData.hypervisor_type || ""}
-                    onChange={(e) => handleEditFormChange("hypervisor_type", e.target.value)}
-                    label="Hypervisor Type"
-                    sx={{ minHeight: 44 }}
-                  >
-                    <MenuItem value="">None</MenuItem>
-                    {hypervisorTypes.map((type) => (
-                      <MenuItem key={type} value={type}>
-                        {type}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-            </Grid>
-            <Grid container spacing={2}>
-              <Grid item xs={3}>
-                <TextField
-                  fullWidth
-                  label="Sockets"
-                  type="number"
-                  value={editFormData.sockets || ""}
-                  onChange={(e) => handleEditFormChange("sockets", e.target.value)}
-                  margin="normal"
-                  variant="outlined"
-                  inputProps={{ min: 1 }}
-                />
-              </Grid>
-              <Grid item xs={3}>
                 <TextField
                   fullWidth
                   label="Cores *"
@@ -932,12 +865,14 @@ function DedicatedHostsContent() {
                   onBlur={() => setEditFormTouched((prev) => ({ ...prev, cores: true }))}
                   margin="normal"
                   variant="outlined"
-                  inputProps={{ min: 1 }}
                   error={editFormTouched.cores && !!validateCores(editFormData.cores)}
                   helperText={editFormTouched.cores && validateCores(editFormData.cores)}
+                  inputProps={{ min: 1 }}
                 />
               </Grid>
-              <Grid item xs={3}>
+            </Grid>
+            <Grid container spacing={2}>
+              <Grid item xs={4}>
                 <TextField
                   fullWidth
                   label="RAM (GB) *"
@@ -947,12 +882,12 @@ function DedicatedHostsContent() {
                   onBlur={() => setEditFormTouched((prev) => ({ ...prev, ram: true }))}
                   margin="normal"
                   variant="outlined"
-                  inputProps={{ min: 1 }}
                   error={editFormTouched.ram && !!validateRam(editFormData.ram)}
                   helperText={editFormTouched.ram && validateRam(editFormData.ram)}
+                  inputProps={{ min: 1 }}
                 />
               </Grid>
-              <Grid item xs={3}>
+              <Grid item xs={4}>
                 <TextField
                   fullWidth
                   label="Network BW (Gbps) *"
@@ -962,9 +897,33 @@ function DedicatedHostsContent() {
                   onBlur={() => setEditFormTouched((prev) => ({ ...prev, networkbw: true }))}
                   margin="normal"
                   variant="outlined"
-                  inputProps={{ min: 1 }}
                   error={editFormTouched.networkbw && !!validateNetworkbw(editFormData.networkbw)}
                   helperText={editFormTouched.networkbw && validateNetworkbw(editFormData.networkbw)}
+                  inputProps={{ min: 1 }}
+                />
+              </Grid>
+              <Grid item xs={4}>
+                <TextField
+                  fullWidth
+                  label="GPU Count"
+                  type="number"
+                  value={editFormData.gpu_count || ""}
+                  onChange={(e) => handleEditFormChange("gpu_count", e.target.value)}
+                  margin="normal"
+                  variant="outlined"
+                  inputProps={{ min: 0 }}
+                />
+              </Grid>
+            </Grid>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="GPU Model"
+                  value={editFormData.gpu_model || ""}
+                  onChange={(e) => handleEditFormChange("gpu_model", e.target.value)}
+                  margin="normal"
+                  variant="outlined"
                 />
               </Grid>
             </Grid>
@@ -998,10 +957,7 @@ function DedicatedHostsContent() {
                 <FormControl
                   fullWidth
                   margin="normal"
-                  error={
-                    editFormTouched.service_type_id &&
-                    !!validateServiceTypeId(editFormData.service_type_id)
-                  }
+                  error={editFormTouched.service_type_id && !!validateServiceTypeId(editFormData.service_type_id)}
                 >
                   <InputLabel>Service Type *</InputLabel>
                   <Select
@@ -1011,18 +967,15 @@ function DedicatedHostsContent() {
                     label="Service Type *"
                     sx={{ minHeight: 44 }}
                   >
-                    {serviceTypes.map((serviceType) => (
-                      <MenuItem key={serviceType.id} value={serviceType.id}>
-                        {serviceType.name}
+                    {serviceTypes.map((st) => (
+                      <MenuItem key={st.id} value={st.id}>
+                        {st.name}
                       </MenuItem>
                     ))}
                   </Select>
-                  {editFormTouched.service_type_id &&
-                    validateServiceTypeId(editFormData.service_type_id) && (
-                      <FormHelperText>
-                        {validateServiceTypeId(editFormData.service_type_id)}
-                      </FormHelperText>
-                    )}
+                  {editFormTouched.service_type_id && validateServiceTypeId(editFormData.service_type_id) && (
+                    <FormHelperText>{validateServiceTypeId(editFormData.service_type_id)}</FormHelperText>
+                  )}
                 </FormControl>
               </Grid>
             </Grid>
@@ -1039,10 +992,16 @@ function DedicatedHostsContent() {
       </Dialog>
 
       {/* Add Modal Dialog */}
-      <Dialog open={addDialogOpen} onClose={handleAddClose} maxWidth="md" fullWidth>
-        <DialogTitle>Add Dedicated Host</DialogTitle>
+      <Dialog
+        open={addDialogOpen}
+        onClose={handleAddClose}
+        aria-labelledby="add-dialog-title"
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle id="add-dialog-title">Add HPC</DialogTitle>
         <DialogContent>
-          <MDBox pt={1}>
+          <MDBox pt={2}>
             <Grid container spacing={2}>
               <Grid item xs={6}>
                 <TextField
@@ -1107,38 +1066,6 @@ function DedicatedHostsContent() {
                 />
               </Grid>
               <Grid item xs={4}>
-                <FormControl fullWidth margin="normal">
-                  <InputLabel>Hypervisor Type</InputLabel>
-                  <Select
-                    value={addFormData.hypervisor_type || ""}
-                    onChange={(e) => handleAddFormChange("hypervisor_type", e.target.value)}
-                    label="Hypervisor Type"
-                    sx={{ minHeight: 44 }}
-                  >
-                    <MenuItem value="">None</MenuItem>
-                    {hypervisorTypes.map((type) => (
-                      <MenuItem key={type} value={type}>
-                        {type}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-              </Grid>
-            </Grid>
-            <Grid container spacing={2}>
-              <Grid item xs={3}>
-                <TextField
-                  fullWidth
-                  label="Sockets"
-                  type="number"
-                  value={addFormData.sockets}
-                  onChange={(e) => handleAddFormChange("sockets", e.target.value)}
-                  margin="normal"
-                  variant="outlined"
-                  inputProps={{ min: 1 }}
-                />
-              </Grid>
-              <Grid item xs={3}>
                 <TextField
                   fullWidth
                   label="Cores *"
@@ -1148,12 +1075,14 @@ function DedicatedHostsContent() {
                   onBlur={() => setAddFormTouched((prev) => ({ ...prev, cores: true }))}
                   margin="normal"
                   variant="outlined"
-                  inputProps={{ min: 1 }}
                   error={addFormTouched.cores && !!validateCores(addFormData.cores)}
                   helperText={addFormTouched.cores && validateCores(addFormData.cores)}
+                  inputProps={{ min: 1 }}
                 />
               </Grid>
-              <Grid item xs={3}>
+            </Grid>
+            <Grid container spacing={2}>
+              <Grid item xs={4}>
                 <TextField
                   fullWidth
                   label="RAM (GB) *"
@@ -1163,12 +1092,12 @@ function DedicatedHostsContent() {
                   onBlur={() => setAddFormTouched((prev) => ({ ...prev, ram: true }))}
                   margin="normal"
                   variant="outlined"
-                  inputProps={{ min: 1 }}
                   error={addFormTouched.ram && !!validateRam(addFormData.ram)}
                   helperText={addFormTouched.ram && validateRam(addFormData.ram)}
+                  inputProps={{ min: 1 }}
                 />
               </Grid>
-              <Grid item xs={3}>
+              <Grid item xs={4}>
                 <TextField
                   fullWidth
                   label="Network BW (Gbps) *"
@@ -1178,9 +1107,33 @@ function DedicatedHostsContent() {
                   onBlur={() => setAddFormTouched((prev) => ({ ...prev, networkbw: true }))}
                   margin="normal"
                   variant="outlined"
-                  inputProps={{ min: 1 }}
                   error={addFormTouched.networkbw && !!validateNetworkbw(addFormData.networkbw)}
                   helperText={addFormTouched.networkbw && validateNetworkbw(addFormData.networkbw)}
+                  inputProps={{ min: 1 }}
+                />
+              </Grid>
+              <Grid item xs={4}>
+                <TextField
+                  fullWidth
+                  label="GPU Count"
+                  type="number"
+                  value={addFormData.gpu_count}
+                  onChange={(e) => handleAddFormChange("gpu_count", e.target.value)}
+                  margin="normal"
+                  variant="outlined"
+                  inputProps={{ min: 0 }}
+                />
+              </Grid>
+            </Grid>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="GPU Model"
+                  value={addFormData.gpu_model}
+                  onChange={(e) => handleAddFormChange("gpu_model", e.target.value)}
+                  margin="normal"
+                  variant="outlined"
                 />
               </Grid>
             </Grid>
@@ -1214,10 +1167,7 @@ function DedicatedHostsContent() {
                 <FormControl
                   fullWidth
                   margin="normal"
-                  error={
-                    addFormTouched.service_type_id &&
-                    !!validateServiceTypeId(addFormData.service_type_id)
-                  }
+                  error={addFormTouched.service_type_id && !!validateServiceTypeId(addFormData.service_type_id)}
                 >
                   <InputLabel>Service Type *</InputLabel>
                   <Select
@@ -1227,18 +1177,15 @@ function DedicatedHostsContent() {
                     label="Service Type *"
                     sx={{ minHeight: 44 }}
                   >
-                    {serviceTypes.map((serviceType) => (
-                      <MenuItem key={serviceType.id} value={serviceType.id}>
-                        {serviceType.name}
+                    {serviceTypes.map((st) => (
+                      <MenuItem key={st.id} value={st.id}>
+                        {st.name}
                       </MenuItem>
                     ))}
                   </Select>
-                  {addFormTouched.service_type_id &&
-                    validateServiceTypeId(addFormData.service_type_id) && (
-                      <FormHelperText>
-                        {validateServiceTypeId(addFormData.service_type_id)}
-                      </FormHelperText>
-                    )}
+                  {addFormTouched.service_type_id && validateServiceTypeId(addFormData.service_type_id) && (
+                    <FormHelperText>{validateServiceTypeId(addFormData.service_type_id)}</FormHelperText>
+                  )}
                 </FormControl>
               </Grid>
             </Grid>
@@ -1257,4 +1204,4 @@ function DedicatedHostsContent() {
   );
 }
 
-export default DedicatedHostsContent;
+export default HpcContent;
