@@ -34,11 +34,15 @@ function BundlesContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [regionFilter, setRegionFilter] = useState("");
+  const [vcpuFilter, setVcpuFilter] = useState("");
+  const [vramFilter, setVramFilter] = useState("");
 
   // Lookup data
   const [services, setServices] = useState([]);
   const [serviceTypes, setServiceTypes] = useState([]);
   const [cloudFamilies, setCloudFamilies] = useState([]);
+  const [regions, setRegions] = useState([]);
 
   // Delete confirmation state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -81,19 +85,22 @@ function BundlesContent() {
 
   async function fetchLookupData() {
     try {
-      const [servicesRes, serviceTypesRes, cloudFamiliesRes] = await Promise.all([
+      const [servicesRes, serviceTypesRes, cloudFamiliesRes, regionsRes] = await Promise.all([
         supabase.from("service").select("id, name").eq("is_active", true).order("name"),
         supabase.from("service_type").select("id, name").eq("is_active", true).order("name"),
         supabase.from("cloud_family").select("id, code, region:region(id, name)").eq("is_active", true).order("code"),
+        supabase.from("region").select("id, name").eq("is_active", true).order("name"),
       ]);
 
       if (servicesRes.error) throw servicesRes.error;
       if (serviceTypesRes.error) throw serviceTypesRes.error;
       if (cloudFamiliesRes.error) throw cloudFamiliesRes.error;
+      if (regionsRes.error) throw regionsRes.error;
 
       setServices(servicesRes.data || []);
       setServiceTypes(serviceTypesRes.data || []);
       setCloudFamilies(cloudFamiliesRes.data || []);
+      setRegions(regionsRes.data || []);
     } catch (err) {
       setError(err.message);
     }
@@ -401,8 +408,30 @@ function BundlesContent() {
     );
   };
 
-  // Filter data based on search term
+  // Filter data based on search term, region filter, vcpu filter, and vram filter
   const filteredData = data.filter((row) => {
+    // Apply region filter
+    if (regionFilter && row.cloud_family?.region?.id !== regionFilter) {
+      return false;
+    }
+
+    // Apply vcpu filter
+    if (vcpuFilter) {
+      const vcpuValue = parseInt(vcpuFilter, 10);
+      if (!Number.isNaN(vcpuValue) && row.vcpu !== vcpuValue) {
+        return false;
+      }
+    }
+
+    // Apply vram filter
+    if (vramFilter) {
+      const vramValue = parseInt(vramFilter, 10);
+      if (!Number.isNaN(vramValue) && row.vram !== vramValue) {
+        return false;
+      }
+    }
+
+    // Then apply search filter
     if (!searchTerm.trim()) return true;
     const search = searchTerm.toLowerCase();
     const bundleName = row.cloud_family?.code ? `${row.cloud_family.code}.${row.code}` : row.code;
@@ -532,27 +561,84 @@ function BundlesContent() {
   return (
     <>
       <MDBox display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-        <TextField
-          placeholder="Search bundles..."
-          size="small"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          sx={{ width: 250 }}
-          InputProps={{
-            startAdornment: (
-              <Icon sx={{ color: "text.secondary", mr: 1 }}>search</Icon>
-            ),
-            endAdornment: searchTerm && (
-              <IconButton
-                size="small"
-                onClick={() => setSearchTerm("")}
-                sx={{ p: 0.5 }}
-              >
-                <Icon sx={{ fontSize: "1rem !important" }}>close</Icon>
-              </IconButton>
-            ),
-          }}
-        />
+        <MDBox display="flex" alignItems="center" gap={2}>
+          <TextField
+            placeholder="Search bundles..."
+            size="small"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            sx={{ width: 250 }}
+            InputProps={{
+              startAdornment: (
+                <Icon sx={{ color: "text.secondary", mr: 1 }}>search</Icon>
+              ),
+              endAdornment: searchTerm && (
+                <IconButton
+                  size="small"
+                  onClick={() => setSearchTerm("")}
+                  sx={{ p: 0.5 }}
+                >
+                  <Icon sx={{ fontSize: "1rem !important" }}>close</Icon>
+                </IconButton>
+              ),
+            }}
+          />
+          <FormControl size="small" sx={{ minWidth: 150 }}>
+            <Select
+              value={regionFilter}
+              onChange={(e) => setRegionFilter(e.target.value)}
+              displayEmpty
+              sx={{ minHeight: 40 }}
+            >
+              <MenuItem value="">Any Region</MenuItem>
+              {regions.map((region) => (
+                <MenuItem key={region.id} value={region.id}>
+                  {region.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <TextField
+            placeholder="vCPU"
+            size="small"
+            type="number"
+            value={vcpuFilter}
+            onChange={(e) => setVcpuFilter(e.target.value)}
+            sx={{ width: 100 }}
+            InputProps={{
+              inputProps: { min: 1 },
+              endAdornment: vcpuFilter && (
+                <IconButton
+                  size="small"
+                  onClick={() => setVcpuFilter("")}
+                  sx={{ p: 0.5 }}
+                >
+                  <Icon sx={{ fontSize: "1rem !important" }}>close</Icon>
+                </IconButton>
+              ),
+            }}
+          />
+          <TextField
+            placeholder="vRAM"
+            size="small"
+            type="number"
+            value={vramFilter}
+            onChange={(e) => setVramFilter(e.target.value)}
+            sx={{ width: 100 }}
+            InputProps={{
+              inputProps: { min: 1 },
+              endAdornment: vramFilter && (
+                <IconButton
+                  size="small"
+                  onClick={() => setVramFilter("")}
+                  sx={{ p: 0.5 }}
+                >
+                  <Icon sx={{ fontSize: "1rem !important" }}>close</Icon>
+                </IconButton>
+              ),
+            }}
+          />
+        </MDBox>
         <MDButton variant="gradient" color="info" size="small" onClick={handleAddClick}>
           <Icon sx={{ mr: 1 }}>add</Icon>
           Add Bundle

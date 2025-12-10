@@ -19,6 +19,8 @@ import Footer from "examples/Footer";
 
 // Tab content components
 import BundlesContent from "layouts/bundles/BundlesContent";
+import DedicatedHostsContent from "layouts/dedicatedhosts/DedicatedHostsContent";
+import BareMetalsContent from "layouts/baremetals/BareMetalsContent";
 
 function TabPanel({ children, value, index, ...other }) {
   return (
@@ -122,15 +124,11 @@ function Compute() {
                 </TabPanel>
 
                 <TabPanel value={tabValue} index={1}>
-                  <MDTypography variant="body2" color="text">
-                    Dedicated Host content will be added here.
-                  </MDTypography>
+                  <DedicatedHostsContent />
                 </TabPanel>
 
                 <TabPanel value={tabValue} index={2}>
-                  <MDTypography variant="body2" color="text">
-                    Bare Metal content will be added here.
-                  </MDTypography>
+                  <BareMetalsContent />
                 </TabPanel>
               </MDBox>
             </Card>
