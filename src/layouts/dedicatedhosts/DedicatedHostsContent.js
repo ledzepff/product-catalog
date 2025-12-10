@@ -74,6 +74,7 @@ function DedicatedHostsContent() {
     service_id: "",
     service_type_id: "",
     cpu_model: "",
+    clockspeed: "",
     sockets: "",
     cores: "",
     ram: "",
@@ -232,6 +233,7 @@ function DedicatedHostsContent() {
       service_id: row.service_id || "",
       service_type_id: row.service_type_id || "",
       cpu_model: row.cpu_model || "",
+      clockspeed: row.clockspeed || "",
       sockets: row.sockets || "",
       cores: row.cores || "",
       ram: row.ram || "",
@@ -285,6 +287,7 @@ function DedicatedHostsContent() {
         service_id: editFormData.service_id,
         service_type_id: editFormData.service_type_id,
         cpu_model: editFormData.cpu_model || null,
+        clockspeed: editFormData.clockspeed ? parseFloat(editFormData.clockspeed) : null,
         sockets: editFormData.sockets ? parseInt(editFormData.sockets, 10) : null,
         cores: editFormData.cores ? parseInt(editFormData.cores, 10) : null,
         ram: editFormData.ram ? parseInt(editFormData.ram, 10) : null,
@@ -319,6 +322,7 @@ function DedicatedHostsContent() {
       service_id: "",
       service_type_id: "",
       cpu_model: "",
+      clockspeed: "",
       sockets: "",
       cores: "",
       ram: "",
@@ -346,6 +350,7 @@ function DedicatedHostsContent() {
       service_id: "",
       service_type_id: "",
       cpu_model: "",
+      clockspeed: "",
       sockets: "",
       cores: "",
       ram: "",
@@ -380,6 +385,7 @@ function DedicatedHostsContent() {
         service_id: addFormData.service_id,
         service_type_id: addFormData.service_type_id,
         cpu_model: addFormData.cpu_model || null,
+        clockspeed: addFormData.clockspeed ? parseFloat(addFormData.clockspeed) : null,
         sockets: addFormData.sockets ? parseInt(addFormData.sockets, 10) : null,
         cores: addFormData.cores ? parseInt(addFormData.cores, 10) : null,
         ram: addFormData.ram ? parseInt(addFormData.ram, 10) : null,
@@ -527,7 +533,18 @@ function DedicatedHostsContent() {
   const columns = [
     { Header: "code", accessor: "code", width: "10%", align: "left" },
     { Header: "region", accessor: "region_name", width: "10%", align: "left" },
-    { Header: "cpu model", accessor: "cpu_model", width: "12%", align: "left" },
+    { Header: "cpu model", accessor: "cpu_model", width: "10%", align: "left" },
+    {
+      Header: "clock (GHz)",
+      accessor: "clockspeed",
+      width: "7%",
+      align: "center",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.clockspeed_raw || 0;
+        const b = rowB.original.clockspeed_raw || 0;
+        return a - b;
+      },
+    },
     { Header: "hypervisor", accessor: "hypervisor_type", width: "8%", align: "center" },
     {
       Header: "sockets",
@@ -595,6 +612,12 @@ function DedicatedHostsContent() {
         {row.cpu_model || "-"}
       </MDTypography>
     ),
+    clockspeed: (
+      <MDTypography variant="caption" color="text">
+        {row.clockspeed || "-"}
+      </MDTypography>
+    ),
+    clockspeed_raw: row.clockspeed || 0,
     hypervisor_type: (
       <MDTypography variant="caption" color="text">
         {row.hypervisor_type || "-"}
@@ -845,7 +868,7 @@ function DedicatedHostsContent() {
               </Grid>
             </Grid>
             <Grid container spacing={2}>
-              <Grid item xs={6}>
+              <Grid item xs={4}>
                 <TextField
                   fullWidth
                   label="CPU Model"
@@ -855,7 +878,19 @@ function DedicatedHostsContent() {
                   variant="outlined"
                 />
               </Grid>
-              <Grid item xs={6}>
+              <Grid item xs={4}>
+                <TextField
+                  fullWidth
+                  label="Clock Speed (GHz)"
+                  type="number"
+                  value={editFormData.clockspeed || ""}
+                  onChange={(e) => handleEditFormChange("clockspeed", e.target.value)}
+                  margin="normal"
+                  variant="outlined"
+                  inputProps={{ min: 0, step: 0.1 }}
+                />
+              </Grid>
+              <Grid item xs={4}>
                 <FormControl fullWidth margin="normal">
                   <InputLabel>Hypervisor Type</InputLabel>
                   <Select
@@ -1049,7 +1084,7 @@ function DedicatedHostsContent() {
               </Grid>
             </Grid>
             <Grid container spacing={2}>
-              <Grid item xs={6}>
+              <Grid item xs={4}>
                 <TextField
                   fullWidth
                   label="CPU Model"
@@ -1059,7 +1094,19 @@ function DedicatedHostsContent() {
                   variant="outlined"
                 />
               </Grid>
-              <Grid item xs={6}>
+              <Grid item xs={4}>
+                <TextField
+                  fullWidth
+                  label="Clock Speed (GHz)"
+                  type="number"
+                  value={addFormData.clockspeed}
+                  onChange={(e) => handleAddFormChange("clockspeed", e.target.value)}
+                  margin="normal"
+                  variant="outlined"
+                  inputProps={{ min: 0, step: 0.1 }}
+                />
+              </Grid>
+              <Grid item xs={4}>
                 <FormControl fullWidth margin="normal">
                   <InputLabel>Hypervisor Type</InputLabel>
                   <Select
