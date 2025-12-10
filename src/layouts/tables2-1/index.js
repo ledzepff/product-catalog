@@ -421,9 +421,39 @@ function ServiceTypes() {
 
   // Define columns for DataTable
   const columns = [
-    { Header: "name", accessor: "name", width: "20%", align: "left" },
-    { Header: "description", accessor: "description", width: "30%", align: "left" },
-    { Header: "service", accessor: "service", width: "15%", align: "left" },
+    {
+      Header: "name",
+      accessor: "name",
+      width: "20%",
+      align: "left",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.name_raw || "";
+        const b = rowB.original.name_raw || "";
+        return a.localeCompare(b);
+      },
+    },
+    {
+      Header: "description",
+      accessor: "description",
+      width: "30%",
+      align: "left",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.description_raw || "";
+        const b = rowB.original.description_raw || "";
+        return a.localeCompare(b);
+      },
+    },
+    {
+      Header: "service",
+      accessor: "service",
+      width: "15%",
+      align: "left",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.service_raw || "";
+        const b = rowB.original.service_raw || "";
+        return a.localeCompare(b);
+      },
+    },
     { Header: "illustration", accessor: "illustration", width: "15%", align: "center" },
     { Header: "actions", accessor: "actions", width: "20%", align: "center" },
   ];
@@ -435,16 +465,19 @@ function ServiceTypes() {
         {row.name || "-"}
       </MDTypography>
     ),
+    name_raw: row.name || "",
     description: (
       <MDTypography variant="caption" color="text">
         {row.description || "-"}
       </MDTypography>
     ),
+    description_raw: row.description || "",
     service: (
       <MDTypography variant="caption" color="text" fontWeight="medium">
         {row.service?.name || "-"}
       </MDTypography>
     ),
+    service_raw: row.service?.name || "",
     illustration: row.illustration ? (
       <IconButton
         size="small"
@@ -548,7 +581,7 @@ function ServiceTypes() {
                 ) : (
                   <DataTable
                     table={{ columns, rows }}
-                    isSorted={false}
+                    isSorted={true}
                     entriesPerPage={false}
                     showTotalEntries={false}
                     noEndBorder

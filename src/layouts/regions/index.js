@@ -254,8 +254,28 @@ function Regions() {
 
   // Define columns for DataTable
   const columns = [
-    { Header: "name", accessor: "name", width: "35%", align: "left" },
-    { Header: "address", accessor: "address", width: "45%", align: "left" },
+    {
+      Header: "name",
+      accessor: "name",
+      width: "35%",
+      align: "left",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.name_raw || "";
+        const b = rowB.original.name_raw || "";
+        return a.localeCompare(b);
+      },
+    },
+    {
+      Header: "address",
+      accessor: "address",
+      width: "45%",
+      align: "left",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.address_raw || "";
+        const b = rowB.original.address_raw || "";
+        return a.localeCompare(b);
+      },
+    },
     { Header: "actions", accessor: "actions", width: "20%", align: "center" },
   ];
 
@@ -266,11 +286,13 @@ function Regions() {
         {row.name || "-"}
       </MDTypography>
     ),
+    name_raw: row.name || "",
     address: (
       <MDTypography variant="caption" color="text">
         {row.address || "-"}
       </MDTypography>
     ),
+    address_raw: row.address || "",
     actions: (
       <MDBox display="flex" justifyContent="center" gap={1}>
         <IconButton
@@ -353,7 +375,7 @@ function Regions() {
                 ) : (
                   <DataTable
                     table={{ columns, rows }}
-                    isSorted={false}
+                    isSorted={true}
                     entriesPerPage={false}
                     showTotalEntries={false}
                     noEndBorder

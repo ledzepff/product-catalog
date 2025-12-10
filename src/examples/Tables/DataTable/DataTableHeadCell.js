@@ -51,17 +51,24 @@ function DataTableHeadCell({ width, children, sorted, align, ...rest }) {
           textTransform: "uppercase",
           cursor: sorted && "pointer",
           userSelect: sorted && "none",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: align === "center" ? "center" : align === "right" ? "flex-end" : "flex-start",
         })}
       >
         {children}
         {sorted && (
           <MDBox
-            position="absolute"
-            top={0}
-            right={align !== "right" ? "16px" : 0}
-            left={align === "right" ? "-5px" : "unset"}
+            position="relative"
+            ml={0.5}
             sx={({ typography: { size } }) => ({
               fontSize: size.lg,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              height: "20px",
+              width: "18px",
+              flexShrink: 0,
             })}
           >
             <MDBox

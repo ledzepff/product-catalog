@@ -466,15 +466,105 @@ function Clouds() {
 
   // Define columns for DataTable
   const columns = [
-    { Header: "code", accessor: "code", width: "10%", align: "left" },
-    { Header: "region", accessor: "region", width: "12%", align: "left" },
-    { Header: "cpu model", accessor: "cpu_model", width: "12%", align: "left" },
-    { Header: "sockets", accessor: "sockets", width: "6%", align: "center" },
-    { Header: "pcpu", accessor: "pcpu", width: "6%", align: "center" },
-    { Header: "pram", accessor: "pram", width: "6%", align: "center" },
-    { Header: "clock (GHz)", accessor: "clockspeed", width: "8%", align: "center" },
-    { Header: "network bw", accessor: "networkbw", width: "8%", align: "center" },
-    { Header: "description", accessor: "description", width: "18%", align: "left" },
+    {
+      Header: "code",
+      accessor: "code",
+      width: "10%",
+      align: "left",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.code_raw || "";
+        const b = rowB.original.code_raw || "";
+        return a.localeCompare(b);
+      },
+    },
+    {
+      Header: "region",
+      accessor: "region",
+      width: "12%",
+      align: "left",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.region_raw || "";
+        const b = rowB.original.region_raw || "";
+        return a.localeCompare(b);
+      },
+    },
+    {
+      Header: "cpu model",
+      accessor: "cpu_model",
+      width: "12%",
+      align: "left",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.cpu_model_raw || "";
+        const b = rowB.original.cpu_model_raw || "";
+        return a.localeCompare(b);
+      },
+    },
+    {
+      Header: "sockets",
+      accessor: "sockets",
+      width: "6%",
+      align: "center",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.sockets_raw || 0;
+        const b = rowB.original.sockets_raw || 0;
+        return a - b;
+      },
+    },
+    {
+      Header: "pcpu",
+      accessor: "pcpu",
+      width: "6%",
+      align: "center",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.pcpu_raw || 0;
+        const b = rowB.original.pcpu_raw || 0;
+        return a - b;
+      },
+    },
+    {
+      Header: "pram",
+      accessor: "pram",
+      width: "6%",
+      align: "center",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.pram_raw || 0;
+        const b = rowB.original.pram_raw || 0;
+        return a - b;
+      },
+    },
+    {
+      Header: "clock (GHz)",
+      accessor: "clockspeed",
+      width: "8%",
+      align: "center",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.clockspeed_raw || 0;
+        const b = rowB.original.clockspeed_raw || 0;
+        return a - b;
+      },
+    },
+    {
+      Header: "network bw",
+      accessor: "networkbw",
+      width: "8%",
+      align: "center",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.networkbw_raw || 0;
+        const b = rowB.original.networkbw_raw || 0;
+        return a - b;
+      },
+    },
+    {
+      Header: "description",
+      accessor: "description",
+      width: "18%",
+      align: "left",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.description_raw || "";
+        const b = rowB.original.description_raw || "";
+        return a.localeCompare(b);
+      },
+    },
     { Header: "actions", accessor: "actions", width: "14%", align: "center" },
   ];
 
@@ -485,46 +575,55 @@ function Clouds() {
         {row.code || "-"}
       </MDTypography>
     ),
+    code_raw: row.code || "",
     region: (
       <MDTypography variant="caption" color="text">
         {row.region?.name || "-"}
       </MDTypography>
     ),
+    region_raw: row.region?.name || "",
     cpu_model: (
       <MDTypography variant="caption" color="text">
         {row.cpu_model || "-"}
       </MDTypography>
     ),
+    cpu_model_raw: row.cpu_model || "",
     sockets: (
       <MDTypography variant="caption" color="text">
         {row.sockets || "-"}
       </MDTypography>
     ),
+    sockets_raw: row.sockets || 0,
     pcpu: (
       <MDTypography variant="caption" color="text">
         {row.pcpu || "-"}
       </MDTypography>
     ),
+    pcpu_raw: row.pcpu || 0,
     pram: (
       <MDTypography variant="caption" color="text">
         {row.pram || "-"}
       </MDTypography>
     ),
+    pram_raw: row.pram || 0,
     clockspeed: (
       <MDTypography variant="caption" color="text">
         {row.clockspeed || "-"}
       </MDTypography>
     ),
+    clockspeed_raw: row.clockspeed || 0,
     networkbw: (
       <MDTypography variant="caption" color="text">
         {row.networkbw || "-"}
       </MDTypography>
     ),
+    networkbw_raw: row.networkbw || 0,
     description: (
       <MDTypography variant="caption" color="text">
         {row.description || "-"}
       </MDTypography>
     ),
+    description_raw: row.description || "",
     actions: (
       <MDBox display="flex" justifyContent="center" gap={1}>
         <IconButton
@@ -607,7 +706,7 @@ function Clouds() {
                 ) : (
                   <DataTable
                     table={{ columns, rows }}
-                    isSorted={false}
+                    isSorted={true}
                     entriesPerPage={false}
                     showTotalEntries={false}
                     noEndBorder

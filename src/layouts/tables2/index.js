@@ -366,8 +366,28 @@ function Services() {
 
   // Define columns for DataTable
   const columns = [
-    { Header: "name", accessor: "name", width: "20%", align: "left" },
-    { Header: "description", accessor: "description", width: "45%", align: "left" },
+    {
+      Header: "name",
+      accessor: "name",
+      width: "20%",
+      align: "left",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.name_raw || "";
+        const b = rowB.original.name_raw || "";
+        return a.localeCompare(b);
+      },
+    },
+    {
+      Header: "description",
+      accessor: "description",
+      width: "45%",
+      align: "left",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.description_raw || "";
+        const b = rowB.original.description_raw || "";
+        return a.localeCompare(b);
+      },
+    },
     { Header: "illustration", accessor: "illustration", width: "15%", align: "center" },
     { Header: "actions", accessor: "actions", width: "20%", align: "center" },
   ];
@@ -379,11 +399,13 @@ function Services() {
         {row.name || "-"}
       </MDTypography>
     ),
+    name_raw: row.name || "",
     description: (
       <MDTypography variant="caption" color="text">
         {row.description || "-"}
       </MDTypography>
     ),
+    description_raw: row.description || "",
     illustration: row.illustration ? (
       <IconButton
         size="small"
@@ -487,7 +509,7 @@ function Services() {
                 ) : (
                   <DataTable
                     table={{ columns, rows }}
-                    isSorted={false}
+                    isSorted={true}
                     entriesPerPage={false}
                     showTotalEntries={false}
                     noEndBorder
