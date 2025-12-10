@@ -17,6 +17,7 @@ import InputLabel from "@mui/material/InputLabel";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
 import FormHelperText from "@mui/material/FormHelperText";
+import Collapse from "@mui/material/Collapse";
 
 // Material Dashboard 2 React components
 import MDBox from "components/MDBox";
@@ -28,6 +29,9 @@ import DataTable from "examples/Tables/DataTable";
 
 // Supabase client
 import { supabase } from "supabaseClient";
+
+// Disk type options
+const DISK_TYPES = ["SSD", "HDD", "NVMe"];
 
 function HpcContent() {
   const [data, setData] = useState([]);
@@ -42,6 +46,7 @@ function HpcContent() {
   const [services, setServices] = useState([]);
   const [serviceTypes, setServiceTypes] = useState([]);
   const [regions, setRegions] = useState([]);
+  const [cloudFamilies, setCloudFamilies] = useState([]);
 
   // Delete confirmation state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -70,13 +75,27 @@ function HpcContent() {
     region_id: "",
     service_id: "",
     service_type_id: "",
+    cloud_family_id: "",
     cpu_model: "",
+    sockets: "",
     clockspeed: "",
     cores: "",
     ram: "",
     networkbw: "",
+    os_disk_type: "",
+    os_disk_size: "",
+    data_disk1_type: "",
+    data_disk1_size: "",
+    data_disk2_type: "",
+    data_disk2_size: "",
+    data_disk3_type: "",
+    data_disk3_size: "",
+    data_disk4_type: "",
+    data_disk4_size: "",
+    gpu_vendor: "",
     gpu_model: "",
     gpu_count: "",
+    gpu_mempry_gb: "",
   });
   const [adding, setAdding] = useState(false);
   const [addFormTouched, setAddFormTouched] = useState({
@@ -89,21 +108,32 @@ function HpcContent() {
     networkbw: false,
   });
 
+  // Advanced sections collapse state
+  const [editAdvancedOpen, setEditAdvancedOpen] = useState(false);
+  const [addAdvancedOpen, setAddAdvancedOpen] = useState(false);
+
   async function fetchLookupData() {
     try {
-      const [servicesRes, serviceTypesRes, regionsRes] = await Promise.all([
+      const [servicesRes, serviceTypesRes, regionsRes, cloudFamiliesRes] = await Promise.all([
         supabase.from("service").select("id, name").eq("is_active", true).order("name"),
         supabase.from("service_type").select("id, name").eq("is_active", true).order("name"),
         supabase.from("region").select("id, name").eq("is_active", true).order("name"),
+        supabase.from("cloud_family").select("id, code, region:region(name)").eq("is_active", true).order("code"),
       ]);
 
-      if (servicesRes.error) throw servicesRes.error;
-      if (serviceTypesRes.error) throw serviceTypesRes.error;
-      if (regionsRes.error) throw regionsRes.error;
-
-      setServices(servicesRes.data || []);
-      setServiceTypes(serviceTypesRes.data || []);
-      setRegions(regionsRes.data || []);
+      // Set data even if some queries fail - don't throw on individual errors
+      if (!servicesRes.error) {
+        setServices(servicesRes.data || []);
+      }
+      if (!serviceTypesRes.error) {
+        setServiceTypes(serviceTypesRes.data || []);
+      }
+      if (!regionsRes.error) {
+        setRegions(regionsRes.data || []);
+      }
+      if (!cloudFamiliesRes.error) {
+        setCloudFamilies(cloudFamiliesRes.data || []);
+      }
     } catch (err) {
       setError(err.message);
     }
@@ -113,7 +143,7 @@ function HpcContent() {
     try {
       setLoading(true);
       const { data: tableData, error: fetchError } = await supabase
-        .from("hpc")
+        .from("hpcs")
         .select(
           `
           *,
@@ -159,7 +189,7 @@ function HpcContent() {
     try {
       setDeleting(true);
       const { error: updateError } = await supabase
-        .from("hpc")
+        .from("hpcs")
         .update({
           is_active: false,
           deleted_at: new Date().toISOString(),
@@ -189,13 +219,27 @@ function HpcContent() {
       region_id: row.region_id || "",
       service_id: row.service_id || "",
       service_type_id: row.service_type_id || "",
+      cloud_family_id: row.cloud_family_id || "",
       cpu_model: row.cpu_model || "",
+      sockets: row.sockets?.toString() || "",
       clockspeed: row.clockspeed?.toString() || "",
       cores: row.cores?.toString() || "",
       ram: row.ram?.toString() || "",
       networkbw: row.networkbw?.toString() || "",
+      os_disk_type: row.os_disk_type || "",
+      os_disk_size: row.os_disk_size?.toString() || "",
+      data_disk1_type: row.data_disk1_type || "",
+      data_disk1_size: row.data_disk1_size?.toString() || "",
+      data_disk2_type: row.data_disk2_type || "",
+      data_disk2_size: row.data_disk2_size?.toString() || "",
+      data_disk3_type: row.data_disk3_type || "",
+      data_disk3_size: row.data_disk3_size?.toString() || "",
+      data_disk4_type: row.data_disk4_type || "",
+      data_disk4_size: row.data_disk4_size?.toString() || "",
+      gpu_vendor: row.gpu_vendor || "",
       gpu_model: row.gpu_model || "",
       gpu_count: row.gpu_count?.toString() || "",
+      gpu_mempry_gb: row.gpu_mempry_gb?.toString() || "",
     });
     setEditFormTouched({
       code: false,
@@ -222,6 +266,7 @@ function HpcContent() {
       ram: false,
       networkbw: false,
     });
+    setEditAdvancedOpen(false);
   };
 
   const handleEditFormChange = (field, value) => {
@@ -241,18 +286,40 @@ function HpcContent() {
         region_id: editFormData.region_id,
         service_id: editFormData.service_id,
         service_type_id: editFormData.service_type_id,
+        cloud_family_id: editFormData.cloud_family_id || null,
         cpu_model: editFormData.cpu_model || null,
+        sockets: editFormData.sockets ? parseInt(editFormData.sockets, 10) : null,
         clockspeed: editFormData.clockspeed ? parseFloat(editFormData.clockspeed) : null,
         cores: editFormData.cores ? parseInt(editFormData.cores, 10) : null,
         ram: editFormData.ram ? parseInt(editFormData.ram, 10) : null,
         networkbw: editFormData.networkbw ? parseInt(editFormData.networkbw, 10) : null,
+        os_disk_type: editFormData.os_disk_type || null,
+        os_disk_size: editFormData.os_disk_size ? parseInt(editFormData.os_disk_size, 10) : null,
+        data_disk1_type: editFormData.data_disk1_type || null,
+        data_disk1_size: editFormData.data_disk1_size
+          ? parseInt(editFormData.data_disk1_size, 10)
+          : null,
+        data_disk2_type: editFormData.data_disk2_type || null,
+        data_disk2_size: editFormData.data_disk2_size
+          ? parseInt(editFormData.data_disk2_size, 10)
+          : null,
+        data_disk3_type: editFormData.data_disk3_type || null,
+        data_disk3_size: editFormData.data_disk3_size
+          ? parseInt(editFormData.data_disk3_size, 10)
+          : null,
+        data_disk4_type: editFormData.data_disk4_type || null,
+        data_disk4_size: editFormData.data_disk4_size
+          ? parseInt(editFormData.data_disk4_size, 10)
+          : null,
+        gpu_vendor: editFormData.gpu_vendor || null,
         gpu_model: editFormData.gpu_model || null,
         gpu_count: editFormData.gpu_count ? parseInt(editFormData.gpu_count, 10) : null,
+        gpu_mempry_gb: editFormData.gpu_mempry_gb ? parseInt(editFormData.gpu_mempry_gb, 10) : null,
         updated_at: new Date().toISOString(),
       };
 
       const { error: updateError } = await supabase
-        .from("hpc")
+        .from("hpcs")
         .update(updateData)
         .eq("id", editingRow.id);
 
@@ -276,13 +343,27 @@ function HpcContent() {
       region_id: "",
       service_id: "",
       service_type_id: "",
+      cloud_family_id: "",
       cpu_model: "",
+      sockets: "",
       clockspeed: "",
       cores: "",
       ram: "",
       networkbw: "",
+      os_disk_type: "",
+      os_disk_size: "",
+      data_disk1_type: "",
+      data_disk1_size: "",
+      data_disk2_type: "",
+      data_disk2_size: "",
+      data_disk3_type: "",
+      data_disk3_size: "",
+      data_disk4_type: "",
+      data_disk4_size: "",
+      gpu_vendor: "",
       gpu_model: "",
       gpu_count: "",
+      gpu_mempry_gb: "",
     });
     setAddFormTouched({
       code: false,
@@ -303,13 +384,27 @@ function HpcContent() {
       region_id: "",
       service_id: "",
       service_type_id: "",
+      cloud_family_id: "",
       cpu_model: "",
+      sockets: "",
       clockspeed: "",
       cores: "",
       ram: "",
       networkbw: "",
+      os_disk_type: "",
+      os_disk_size: "",
+      data_disk1_type: "",
+      data_disk1_size: "",
+      data_disk2_type: "",
+      data_disk2_size: "",
+      data_disk3_type: "",
+      data_disk3_size: "",
+      data_disk4_type: "",
+      data_disk4_size: "",
+      gpu_vendor: "",
       gpu_model: "",
       gpu_count: "",
+      gpu_mempry_gb: "",
     });
     setAddFormTouched({
       code: false,
@@ -320,6 +415,7 @@ function HpcContent() {
       ram: false,
       networkbw: false,
     });
+    setAddAdvancedOpen(false);
   };
 
   const handleAddFormChange = (field, value) => {
@@ -337,19 +433,41 @@ function HpcContent() {
         region_id: addFormData.region_id,
         service_id: addFormData.service_id,
         service_type_id: addFormData.service_type_id,
+        cloud_family_id: addFormData.cloud_family_id || null,
         cpu_model: addFormData.cpu_model || null,
+        sockets: addFormData.sockets ? parseInt(addFormData.sockets, 10) : null,
         clockspeed: addFormData.clockspeed ? parseFloat(addFormData.clockspeed) : null,
         cores: addFormData.cores ? parseInt(addFormData.cores, 10) : null,
         ram: addFormData.ram ? parseInt(addFormData.ram, 10) : null,
         networkbw: addFormData.networkbw ? parseInt(addFormData.networkbw, 10) : null,
+        os_disk_type: addFormData.os_disk_type || null,
+        os_disk_size: addFormData.os_disk_size ? parseInt(addFormData.os_disk_size, 10) : null,
+        data_disk1_type: addFormData.data_disk1_type || null,
+        data_disk1_size: addFormData.data_disk1_size
+          ? parseInt(addFormData.data_disk1_size, 10)
+          : null,
+        data_disk2_type: addFormData.data_disk2_type || null,
+        data_disk2_size: addFormData.data_disk2_size
+          ? parseInt(addFormData.data_disk2_size, 10)
+          : null,
+        data_disk3_type: addFormData.data_disk3_type || null,
+        data_disk3_size: addFormData.data_disk3_size
+          ? parseInt(addFormData.data_disk3_size, 10)
+          : null,
+        data_disk4_type: addFormData.data_disk4_type || null,
+        data_disk4_size: addFormData.data_disk4_size
+          ? parseInt(addFormData.data_disk4_size, 10)
+          : null,
+        gpu_vendor: addFormData.gpu_vendor || null,
         gpu_model: addFormData.gpu_model || null,
         gpu_count: addFormData.gpu_count ? parseInt(addFormData.gpu_count, 10) : null,
+        gpu_mempry_gb: addFormData.gpu_mempry_gb ? parseInt(addFormData.gpu_mempry_gb, 10) : null,
         is_active: true,
         created_at: new Date().toISOString(),
         created_by: "admin",
       };
 
-      const { error: insertError } = await supabase.from("hpc").insert(insertData);
+      const { error: insertError } = await supabase.from("hpcs").insert(insertData);
 
       if (insertError) {
         throw insertError;
@@ -369,8 +487,8 @@ function HpcContent() {
     if (!code || code.trim().length === 0) {
       return "Code is required";
     }
-    if (code.trim().length < 3) {
-      return "Code must be at least 3 characters long";
+    if (code.trim().length < 2) {
+      return "Code must be at least 2 characters long";
     }
     return "";
   };
@@ -483,6 +601,7 @@ function HpcContent() {
       (row.code && row.code.toLowerCase().includes(search)) ||
       (row.cpu_model && row.cpu_model.toLowerCase().includes(search)) ||
       (row.gpu_model && row.gpu_model.toLowerCase().includes(search)) ||
+      (row.gpu_vendor && row.gpu_vendor.toLowerCase().includes(search)) ||
       (row.cores && row.cores.toString().includes(search)) ||
       (row.ram && row.ram.toString().includes(search)) ||
       (row.region?.name && row.region.name.toLowerCase().includes(search)) ||
@@ -493,13 +612,54 @@ function HpcContent() {
 
   // Define columns for DataTable
   const columns = [
-    { Header: "code", accessor: "code", width: "10%", align: "left" },
-    { Header: "region", accessor: "region_name", width: "10%", align: "left" },
-    { Header: "cpu model", accessor: "cpu_model", width: "12%", align: "left" },
     {
-      Header: "clock (GHz)",
+      Header: "code",
+      accessor: "code",
+      width: "8%",
+      align: "left",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.code_raw || "";
+        const b = rowB.original.code_raw || "";
+        return a.localeCompare(b);
+      },
+    },
+    {
+      Header: "region",
+      accessor: "region_name",
+      width: "8%",
+      align: "left",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.region_raw || "";
+        const b = rowB.original.region_raw || "";
+        return a.localeCompare(b);
+      },
+    },
+    {
+      Header: "cpu model",
+      accessor: "cpu_model",
+      width: "10%",
+      align: "left",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.cpu_model_raw || "";
+        const b = rowB.original.cpu_model_raw || "";
+        return a.localeCompare(b);
+      },
+    },
+    {
+      Header: "sockets",
+      accessor: "sockets",
+      width: "5%",
+      align: "center",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.sockets_raw || 0;
+        const b = rowB.original.sockets_raw || 0;
+        return a - b;
+      },
+    },
+    {
+      Header: "clock",
       accessor: "clockspeed",
-      width: "7%",
+      width: "5%",
       align: "center",
       sortType: (rowA, rowB) => {
         const a = rowA.original.clockspeed_raw || 0;
@@ -510,7 +670,7 @@ function HpcContent() {
     {
       Header: "cores",
       accessor: "cores",
-      width: "6%",
+      width: "5%",
       align: "center",
       sortType: (rowA, rowB) => {
         const a = rowA.original.cores_raw || 0;
@@ -521,7 +681,7 @@ function HpcContent() {
     {
       Header: "ram",
       accessor: "ram",
-      width: "6%",
+      width: "5%",
       align: "center",
       sortType: (rowA, rowB) => {
         const a = rowA.original.ram_raw || 0;
@@ -529,21 +689,51 @@ function HpcContent() {
         return a - b;
       },
     },
-    { Header: "network bw", accessor: "networkbw", width: "8%", align: "center" },
-    { Header: "gpu model", accessor: "gpu_model", width: "12%", align: "left" },
     {
-      Header: "gpu count",
-      accessor: "gpu_count",
-      width: "6%",
+      Header: "net bw",
+      accessor: "networkbw",
+      width: "5%",
       align: "center",
       sortType: (rowA, rowB) => {
-        const a = rowA.original.gpu_count_raw || 0;
-        const b = rowB.original.gpu_count_raw || 0;
+        const a = rowA.original.networkbw_raw || 0;
+        const b = rowB.original.networkbw_raw || 0;
         return a - b;
       },
     },
-    { Header: "service", accessor: "service_name", width: "10%", align: "left" },
-    { Header: "actions", accessor: "actions", width: "8%", align: "center" },
+    {
+      Header: "os disk",
+      accessor: "os_disk",
+      width: "8%",
+      align: "center",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.os_disk_size_raw || 0;
+        const b = rowB.original.os_disk_size_raw || 0;
+        return a - b;
+      },
+    },
+    {
+      Header: "gpu",
+      accessor: "gpu_info",
+      width: "12%",
+      align: "left",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.gpu_model_raw || "";
+        const b = rowB.original.gpu_model_raw || "";
+        return a.localeCompare(b);
+      },
+    },
+    {
+      Header: "service",
+      accessor: "service_name",
+      width: "10%",
+      align: "left",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.service_raw || "";
+        const b = rowB.original.service_raw || "";
+        return a.localeCompare(b);
+      },
+    },
+    { Header: "actions", accessor: "actions", width: "8%", align: "center", disableSortBy: true },
   ];
 
   // Transform data to rows format for DataTable
@@ -553,16 +743,25 @@ function HpcContent() {
         {row.code || "-"}
       </MDTypography>
     ),
+    code_raw: row.code || "",
     region_name: (
       <MDTypography variant="caption" color="text">
         {row.region?.name || "-"}
       </MDTypography>
     ),
+    region_raw: row.region?.name || "",
     cpu_model: (
       <MDTypography variant="caption" color="text">
         {row.cpu_model || "-"}
       </MDTypography>
     ),
+    cpu_model_raw: row.cpu_model || "",
+    sockets: (
+      <MDTypography variant="caption" color="text">
+        {row.sockets || "-"}
+      </MDTypography>
+    ),
+    sockets_raw: row.sockets || 0,
     clockspeed: (
       <MDTypography variant="caption" color="text">
         {row.clockspeed || "-"}
@@ -586,22 +785,31 @@ function HpcContent() {
         {row.networkbw || "-"}
       </MDTypography>
     ),
-    gpu_model: (
+    networkbw_raw: row.networkbw || 0,
+    os_disk: (
       <MDTypography variant="caption" color="text">
-        {row.gpu_model || "-"}
+        {row.os_disk_type && row.os_disk_size
+          ? `${row.os_disk_type} ${row.os_disk_size}GB`
+          : row.os_disk_size
+            ? `${row.os_disk_size}GB`
+            : "-"}
       </MDTypography>
     ),
-    gpu_count: (
+    os_disk_size_raw: row.os_disk_size || 0,
+    gpu_info: (
       <MDTypography variant="caption" color="text">
-        {row.gpu_count || "-"}
+        {row.gpu_count && row.gpu_model
+          ? `${row.gpu_count}x ${row.gpu_model}`
+          : row.gpu_model || "-"}
       </MDTypography>
     ),
-    gpu_count_raw: row.gpu_count || 0,
+    gpu_model_raw: row.gpu_model || "",
     service_name: (
       <MDTypography variant="caption" color="text">
         {row.service?.name || "-"}
       </MDTypography>
     ),
+    service_raw: row.service?.name || "",
     actions: (
       <MDBox display="flex" justifyContent="center" gap={1}>
         <IconButton
@@ -647,15 +855,9 @@ function HpcContent() {
             onChange={(e) => setSearchTerm(e.target.value)}
             sx={{ width: 250 }}
             InputProps={{
-              startAdornment: (
-                <Icon sx={{ color: "text.secondary", mr: 1 }}>search</Icon>
-              ),
+              startAdornment: <Icon sx={{ color: "text.secondary", mr: 1 }}>search</Icon>,
               endAdornment: searchTerm && (
-                <IconButton
-                  size="small"
-                  onClick={() => setSearchTerm("")}
-                  sx={{ p: 0.5 }}
-                >
+                <IconButton size="small" onClick={() => setSearchTerm("")} sx={{ p: 0.5 }}>
                   <Icon sx={{ fontSize: "1rem !important" }}>close</Icon>
                 </IconButton>
               ),
@@ -686,11 +888,7 @@ function HpcContent() {
             InputProps={{
               inputProps: { min: 1 },
               endAdornment: coresFilter && (
-                <IconButton
-                  size="small"
-                  onClick={() => setCoresFilter("")}
-                  sx={{ p: 0.5 }}
-                >
+                <IconButton size="small" onClick={() => setCoresFilter("")} sx={{ p: 0.5 }}>
                   <Icon sx={{ fontSize: "1rem !important" }}>close</Icon>
                 </IconButton>
               ),
@@ -706,11 +904,7 @@ function HpcContent() {
             InputProps={{
               inputProps: { min: 1 },
               endAdornment: ramFilter && (
-                <IconButton
-                  size="small"
-                  onClick={() => setRamFilter("")}
-                  sx={{ p: 0.5 }}
-                >
+                <IconButton size="small" onClick={() => setRamFilter("")} sx={{ p: 0.5 }}>
                   <Icon sx={{ fontSize: "1rem !important" }}>close</Icon>
                 </IconButton>
               ),
@@ -767,8 +961,8 @@ function HpcContent() {
         <DialogTitle id="delete-dialog-title">Confirm Delete</DialogTitle>
         <DialogContent>
           <DialogContentText id="delete-dialog-description">
-            Are you sure you want to delete HPC &quot;{rowToDelete?.code}&quot;? This action
-            cannot be undone.
+            Are you sure you want to delete HPC &quot;{rowToDelete?.code}&quot;? This action cannot
+            be undone.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -792,6 +986,10 @@ function HpcContent() {
         <DialogTitle id="edit-dialog-title">Edit HPC</DialogTitle>
         <DialogContent>
           <MDBox pt={2}>
+            {/* Basic Info */}
+            <MDTypography variant="subtitle2" fontWeight="medium" mb={1}>
+              Basic Information
+            </MDTypography>
             <Grid container spacing={2}>
               <Grid item xs={6}>
                 <TextField
@@ -833,101 +1031,6 @@ function HpcContent() {
               </Grid>
             </Grid>
             <Grid container spacing={2}>
-              <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  label="CPU Model"
-                  value={editFormData.cpu_model || ""}
-                  onChange={(e) => handleEditFormChange("cpu_model", e.target.value)}
-                  margin="normal"
-                  variant="outlined"
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  label="Clock Speed (GHz)"
-                  type="number"
-                  value={editFormData.clockspeed || ""}
-                  onChange={(e) => handleEditFormChange("clockspeed", e.target.value)}
-                  margin="normal"
-                  variant="outlined"
-                  inputProps={{ min: 0, step: 0.1 }}
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  label="Cores *"
-                  type="number"
-                  value={editFormData.cores || ""}
-                  onChange={(e) => handleEditFormChange("cores", e.target.value)}
-                  onBlur={() => setEditFormTouched((prev) => ({ ...prev, cores: true }))}
-                  margin="normal"
-                  variant="outlined"
-                  error={editFormTouched.cores && !!validateCores(editFormData.cores)}
-                  helperText={editFormTouched.cores && validateCores(editFormData.cores)}
-                  inputProps={{ min: 1 }}
-                />
-              </Grid>
-            </Grid>
-            <Grid container spacing={2}>
-              <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  label="RAM (GB) *"
-                  type="number"
-                  value={editFormData.ram || ""}
-                  onChange={(e) => handleEditFormChange("ram", e.target.value)}
-                  onBlur={() => setEditFormTouched((prev) => ({ ...prev, ram: true }))}
-                  margin="normal"
-                  variant="outlined"
-                  error={editFormTouched.ram && !!validateRam(editFormData.ram)}
-                  helperText={editFormTouched.ram && validateRam(editFormData.ram)}
-                  inputProps={{ min: 1 }}
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  label="Network BW (Gbps) *"
-                  type="number"
-                  value={editFormData.networkbw || ""}
-                  onChange={(e) => handleEditFormChange("networkbw", e.target.value)}
-                  onBlur={() => setEditFormTouched((prev) => ({ ...prev, networkbw: true }))}
-                  margin="normal"
-                  variant="outlined"
-                  error={editFormTouched.networkbw && !!validateNetworkbw(editFormData.networkbw)}
-                  helperText={editFormTouched.networkbw && validateNetworkbw(editFormData.networkbw)}
-                  inputProps={{ min: 1 }}
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  label="GPU Count"
-                  type="number"
-                  value={editFormData.gpu_count || ""}
-                  onChange={(e) => handleEditFormChange("gpu_count", e.target.value)}
-                  margin="normal"
-                  variant="outlined"
-                  inputProps={{ min: 0 }}
-                />
-              </Grid>
-            </Grid>
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="GPU Model"
-                  value={editFormData.gpu_model || ""}
-                  onChange={(e) => handleEditFormChange("gpu_model", e.target.value)}
-                  margin="normal"
-                  variant="outlined"
-                />
-              </Grid>
-            </Grid>
-            <Grid container spacing={2}>
               <Grid item xs={6}>
                 <FormControl
                   fullWidth
@@ -957,13 +1060,18 @@ function HpcContent() {
                 <FormControl
                   fullWidth
                   margin="normal"
-                  error={editFormTouched.service_type_id && !!validateServiceTypeId(editFormData.service_type_id)}
+                  error={
+                    editFormTouched.service_type_id &&
+                    !!validateServiceTypeId(editFormData.service_type_id)
+                  }
                 >
                   <InputLabel>Service Type *</InputLabel>
                   <Select
                     value={editFormData.service_type_id || ""}
                     onChange={(e) => handleEditFormChange("service_type_id", e.target.value)}
-                    onBlur={() => setEditFormTouched((prev) => ({ ...prev, service_type_id: true }))}
+                    onBlur={() =>
+                      setEditFormTouched((prev) => ({ ...prev, service_type_id: true }))
+                    }
                     label="Service Type *"
                     sx={{ minHeight: 44 }}
                   >
@@ -973,12 +1081,358 @@ function HpcContent() {
                       </MenuItem>
                     ))}
                   </Select>
-                  {editFormTouched.service_type_id && validateServiceTypeId(editFormData.service_type_id) && (
-                    <FormHelperText>{validateServiceTypeId(editFormData.service_type_id)}</FormHelperText>
-                  )}
+                  {editFormTouched.service_type_id &&
+                    validateServiceTypeId(editFormData.service_type_id) && (
+                      <FormHelperText>
+                        {validateServiceTypeId(editFormData.service_type_id)}
+                      </FormHelperText>
+                    )}
+                </FormControl>
+              </Grid>
+              <Grid item xs={6}>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>Cloud Family</InputLabel>
+                  <Select
+                    value={editFormData.cloud_family_id || ""}
+                    onChange={(e) => handleEditFormChange("cloud_family_id", e.target.value)}
+                    label="Cloud Family"
+                    sx={{ minHeight: 44 }}
+                  >
+                    <MenuItem value="">None</MenuItem>
+                    {cloudFamilies.map((cf) => (
+                      <MenuItem key={cf.id} value={cf.id}>
+                        {cf.code}{cf.region?.name ? ` (${cf.region.name})` : ""}
+                      </MenuItem>
+                    ))}
+                  </Select>
                 </FormControl>
               </Grid>
             </Grid>
+
+            {/* CPU Info */}
+            <MDTypography variant="subtitle2" fontWeight="medium" mt={2} mb={1}>
+              CPU Configuration
+            </MDTypography>
+            <Grid container spacing={2}>
+              <Grid item xs={3}>
+                <TextField
+                  fullWidth
+                  label="CPU Model"
+                  value={editFormData.cpu_model || ""}
+                  onChange={(e) => handleEditFormChange("cpu_model", e.target.value)}
+                  margin="normal"
+                  variant="outlined"
+                />
+              </Grid>
+              <Grid item xs={3}>
+                <TextField
+                  fullWidth
+                  label="Sockets"
+                  type="number"
+                  value={editFormData.sockets || ""}
+                  onChange={(e) => handleEditFormChange("sockets", e.target.value)}
+                  margin="normal"
+                  variant="outlined"
+                  inputProps={{ min: 1 }}
+                />
+              </Grid>
+              <Grid item xs={3}>
+                <TextField
+                  fullWidth
+                  label="Clock Speed (GHz)"
+                  type="number"
+                  value={editFormData.clockspeed || ""}
+                  onChange={(e) => handleEditFormChange("clockspeed", e.target.value)}
+                  margin="normal"
+                  variant="outlined"
+                  inputProps={{ min: 0, step: 0.1 }}
+                />
+              </Grid>
+              <Grid item xs={3}>
+                <TextField
+                  fullWidth
+                  label="Cores *"
+                  type="number"
+                  value={editFormData.cores || ""}
+                  onChange={(e) => handleEditFormChange("cores", e.target.value)}
+                  onBlur={() => setEditFormTouched((prev) => ({ ...prev, cores: true }))}
+                  margin="normal"
+                  variant="outlined"
+                  error={editFormTouched.cores && !!validateCores(editFormData.cores)}
+                  helperText={editFormTouched.cores && validateCores(editFormData.cores)}
+                  inputProps={{ min: 1 }}
+                />
+              </Grid>
+            </Grid>
+
+            {/* Memory & Network */}
+            <MDTypography variant="subtitle2" fontWeight="medium" mt={2} mb={1}>
+              Memory & Network
+            </MDTypography>
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  label="RAM (GB) *"
+                  type="number"
+                  value={editFormData.ram || ""}
+                  onChange={(e) => handleEditFormChange("ram", e.target.value)}
+                  onBlur={() => setEditFormTouched((prev) => ({ ...prev, ram: true }))}
+                  margin="normal"
+                  variant="outlined"
+                  error={editFormTouched.ram && !!validateRam(editFormData.ram)}
+                  helperText={editFormTouched.ram && validateRam(editFormData.ram)}
+                  inputProps={{ min: 1 }}
+                />
+              </Grid>
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  label="Network BW (Gbps) *"
+                  type="number"
+                  value={editFormData.networkbw || ""}
+                  onChange={(e) => handleEditFormChange("networkbw", e.target.value)}
+                  onBlur={() => setEditFormTouched((prev) => ({ ...prev, networkbw: true }))}
+                  margin="normal"
+                  variant="outlined"
+                  error={editFormTouched.networkbw && !!validateNetworkbw(editFormData.networkbw)}
+                  helperText={editFormTouched.networkbw && validateNetworkbw(editFormData.networkbw)}
+                  inputProps={{ min: 1 }}
+                />
+              </Grid>
+            </Grid>
+
+            {/* GPU Info - Moved above disk sections */}
+            <MDTypography variant="subtitle2" fontWeight="medium" mt={2} mb={1}>
+              GPU Configuration
+            </MDTypography>
+            <Grid container spacing={2}>
+              <Grid item xs={3}>
+                <TextField
+                  fullWidth
+                  label="GPU Vendor"
+                  value={editFormData.gpu_vendor || ""}
+                  onChange={(e) => handleEditFormChange("gpu_vendor", e.target.value)}
+                  margin="normal"
+                  variant="outlined"
+                />
+              </Grid>
+              <Grid item xs={3}>
+                <TextField
+                  fullWidth
+                  label="GPU Model"
+                  value={editFormData.gpu_model || ""}
+                  onChange={(e) => handleEditFormChange("gpu_model", e.target.value)}
+                  margin="normal"
+                  variant="outlined"
+                />
+              </Grid>
+              <Grid item xs={3}>
+                <TextField
+                  fullWidth
+                  label="GPU Count"
+                  type="number"
+                  value={editFormData.gpu_count || ""}
+                  onChange={(e) => handleEditFormChange("gpu_count", e.target.value)}
+                  margin="normal"
+                  variant="outlined"
+                  inputProps={{ min: 0 }}
+                />
+              </Grid>
+              <Grid item xs={3}>
+                <TextField
+                  fullWidth
+                  label="GPU Memory (GB)"
+                  type="number"
+                  value={editFormData.gpu_mempry_gb || ""}
+                  onChange={(e) => handleEditFormChange("gpu_mempry_gb", e.target.value)}
+                  margin="normal"
+                  variant="outlined"
+                  inputProps={{ min: 0 }}
+                />
+              </Grid>
+            </Grid>
+
+            {/* Advanced Section - Collapsible */}
+            <MDBox mt={2}>
+              <MDButton
+                variant="text"
+                color="info"
+                size="small"
+                onClick={() => setEditAdvancedOpen(!editAdvancedOpen)}
+                sx={{ textTransform: "none", p: 0 }}
+              >
+                <Icon sx={{ mr: 0.5 }}>{editAdvancedOpen ? "expand_less" : "expand_more"}</Icon>
+                {editAdvancedOpen ? "Hide Advanced" : "Show Advanced"}
+              </MDButton>
+            </MDBox>
+            <Collapse in={editAdvancedOpen}>
+              {/* OS Disk */}
+              <MDTypography variant="subtitle2" fontWeight="medium" mt={2} mb={1}>
+                OS Disk
+              </MDTypography>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel>OS Disk Type</InputLabel>
+                    <Select
+                      value={editFormData.os_disk_type || ""}
+                      onChange={(e) => handleEditFormChange("os_disk_type", e.target.value)}
+                      label="OS Disk Type"
+                      sx={{ minHeight: 44 }}
+                    >
+                      <MenuItem value="">None</MenuItem>
+                      {DISK_TYPES.map((type) => (
+                        <MenuItem key={type} value={type}>
+                          {type}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={6}>
+                  <TextField
+                    fullWidth
+                    label="OS Disk Size (GB)"
+                    type="number"
+                    value={editFormData.os_disk_size || ""}
+                    onChange={(e) => handleEditFormChange("os_disk_size", e.target.value)}
+                    margin="normal"
+                    variant="outlined"
+                    inputProps={{ min: 1 }}
+                  />
+                </Grid>
+              </Grid>
+
+              {/* Data Disks */}
+              <MDTypography variant="subtitle2" fontWeight="medium" mt={2} mb={1}>
+                Data Disks
+              </MDTypography>
+              <Grid container spacing={2}>
+                <Grid item xs={3}>
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel>Data Disk 1 Type</InputLabel>
+                    <Select
+                      value={editFormData.data_disk1_type || ""}
+                      onChange={(e) => handleEditFormChange("data_disk1_type", e.target.value)}
+                      label="Data Disk 1 Type"
+                      sx={{ minHeight: 44 }}
+                    >
+                      <MenuItem value="">None</MenuItem>
+                      {DISK_TYPES.map((type) => (
+                        <MenuItem key={type} value={type}>
+                          {type}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={3}>
+                  <TextField
+                    fullWidth
+                    label="Size (GB)"
+                    type="number"
+                    value={editFormData.data_disk1_size || ""}
+                    onChange={(e) => handleEditFormChange("data_disk1_size", e.target.value)}
+                    margin="normal"
+                    variant="outlined"
+                    inputProps={{ min: 1 }}
+                  />
+                </Grid>
+                <Grid item xs={3}>
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel>Data Disk 2 Type</InputLabel>
+                    <Select
+                      value={editFormData.data_disk2_type || ""}
+                      onChange={(e) => handleEditFormChange("data_disk2_type", e.target.value)}
+                      label="Data Disk 2 Type"
+                      sx={{ minHeight: 44 }}
+                    >
+                      <MenuItem value="">None</MenuItem>
+                      {DISK_TYPES.map((type) => (
+                        <MenuItem key={type} value={type}>
+                          {type}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={3}>
+                  <TextField
+                    fullWidth
+                    label="Size (GB)"
+                    type="number"
+                    value={editFormData.data_disk2_size || ""}
+                    onChange={(e) => handleEditFormChange("data_disk2_size", e.target.value)}
+                    margin="normal"
+                    variant="outlined"
+                    inputProps={{ min: 1 }}
+                  />
+                </Grid>
+              </Grid>
+              <Grid container spacing={2}>
+                <Grid item xs={3}>
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel>Data Disk 3 Type</InputLabel>
+                    <Select
+                      value={editFormData.data_disk3_type || ""}
+                      onChange={(e) => handleEditFormChange("data_disk3_type", e.target.value)}
+                      label="Data Disk 3 Type"
+                      sx={{ minHeight: 44 }}
+                    >
+                      <MenuItem value="">None</MenuItem>
+                      {DISK_TYPES.map((type) => (
+                        <MenuItem key={type} value={type}>
+                          {type}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={3}>
+                  <TextField
+                    fullWidth
+                    label="Size (GB)"
+                    type="number"
+                    value={editFormData.data_disk3_size || ""}
+                    onChange={(e) => handleEditFormChange("data_disk3_size", e.target.value)}
+                    margin="normal"
+                    variant="outlined"
+                    inputProps={{ min: 1 }}
+                  />
+                </Grid>
+                <Grid item xs={3}>
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel>Data Disk 4 Type</InputLabel>
+                    <Select
+                      value={editFormData.data_disk4_type || ""}
+                      onChange={(e) => handleEditFormChange("data_disk4_type", e.target.value)}
+                      label="Data Disk 4 Type"
+                      sx={{ minHeight: 44 }}
+                    >
+                      <MenuItem value="">None</MenuItem>
+                      {DISK_TYPES.map((type) => (
+                        <MenuItem key={type} value={type}>
+                          {type}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={3}>
+                  <TextField
+                    fullWidth
+                    label="Size (GB)"
+                    type="number"
+                    value={editFormData.data_disk4_size || ""}
+                    onChange={(e) => handleEditFormChange("data_disk4_size", e.target.value)}
+                    margin="normal"
+                    variant="outlined"
+                    inputProps={{ min: 1 }}
+                  />
+                </Grid>
+              </Grid>
+            </Collapse>
           </MDBox>
         </DialogContent>
         <DialogActions>
@@ -1002,6 +1456,10 @@ function HpcContent() {
         <DialogTitle id="add-dialog-title">Add HPC</DialogTitle>
         <DialogContent>
           <MDBox pt={2}>
+            {/* Basic Info */}
+            <MDTypography variant="subtitle2" fontWeight="medium" mb={1}>
+              Basic Information
+            </MDTypography>
             <Grid container spacing={2}>
               <Grid item xs={6}>
                 <TextField
@@ -1043,101 +1501,6 @@ function HpcContent() {
               </Grid>
             </Grid>
             <Grid container spacing={2}>
-              <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  label="CPU Model"
-                  value={addFormData.cpu_model}
-                  onChange={(e) => handleAddFormChange("cpu_model", e.target.value)}
-                  margin="normal"
-                  variant="outlined"
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  label="Clock Speed (GHz)"
-                  type="number"
-                  value={addFormData.clockspeed}
-                  onChange={(e) => handleAddFormChange("clockspeed", e.target.value)}
-                  margin="normal"
-                  variant="outlined"
-                  inputProps={{ min: 0, step: 0.1 }}
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  label="Cores *"
-                  type="number"
-                  value={addFormData.cores}
-                  onChange={(e) => handleAddFormChange("cores", e.target.value)}
-                  onBlur={() => setAddFormTouched((prev) => ({ ...prev, cores: true }))}
-                  margin="normal"
-                  variant="outlined"
-                  error={addFormTouched.cores && !!validateCores(addFormData.cores)}
-                  helperText={addFormTouched.cores && validateCores(addFormData.cores)}
-                  inputProps={{ min: 1 }}
-                />
-              </Grid>
-            </Grid>
-            <Grid container spacing={2}>
-              <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  label="RAM (GB) *"
-                  type="number"
-                  value={addFormData.ram}
-                  onChange={(e) => handleAddFormChange("ram", e.target.value)}
-                  onBlur={() => setAddFormTouched((prev) => ({ ...prev, ram: true }))}
-                  margin="normal"
-                  variant="outlined"
-                  error={addFormTouched.ram && !!validateRam(addFormData.ram)}
-                  helperText={addFormTouched.ram && validateRam(addFormData.ram)}
-                  inputProps={{ min: 1 }}
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  label="Network BW (Gbps) *"
-                  type="number"
-                  value={addFormData.networkbw}
-                  onChange={(e) => handleAddFormChange("networkbw", e.target.value)}
-                  onBlur={() => setAddFormTouched((prev) => ({ ...prev, networkbw: true }))}
-                  margin="normal"
-                  variant="outlined"
-                  error={addFormTouched.networkbw && !!validateNetworkbw(addFormData.networkbw)}
-                  helperText={addFormTouched.networkbw && validateNetworkbw(addFormData.networkbw)}
-                  inputProps={{ min: 1 }}
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  label="GPU Count"
-                  type="number"
-                  value={addFormData.gpu_count}
-                  onChange={(e) => handleAddFormChange("gpu_count", e.target.value)}
-                  margin="normal"
-                  variant="outlined"
-                  inputProps={{ min: 0 }}
-                />
-              </Grid>
-            </Grid>
-            <Grid container spacing={2}>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="GPU Model"
-                  value={addFormData.gpu_model}
-                  onChange={(e) => handleAddFormChange("gpu_model", e.target.value)}
-                  margin="normal"
-                  variant="outlined"
-                />
-              </Grid>
-            </Grid>
-            <Grid container spacing={2}>
               <Grid item xs={6}>
                 <FormControl
                   fullWidth
@@ -1167,7 +1530,10 @@ function HpcContent() {
                 <FormControl
                   fullWidth
                   margin="normal"
-                  error={addFormTouched.service_type_id && !!validateServiceTypeId(addFormData.service_type_id)}
+                  error={
+                    addFormTouched.service_type_id &&
+                    !!validateServiceTypeId(addFormData.service_type_id)
+                  }
                 >
                   <InputLabel>Service Type *</InputLabel>
                   <Select
@@ -1183,12 +1549,358 @@ function HpcContent() {
                       </MenuItem>
                     ))}
                   </Select>
-                  {addFormTouched.service_type_id && validateServiceTypeId(addFormData.service_type_id) && (
-                    <FormHelperText>{validateServiceTypeId(addFormData.service_type_id)}</FormHelperText>
-                  )}
+                  {addFormTouched.service_type_id &&
+                    validateServiceTypeId(addFormData.service_type_id) && (
+                      <FormHelperText>
+                        {validateServiceTypeId(addFormData.service_type_id)}
+                      </FormHelperText>
+                    )}
+                </FormControl>
+              </Grid>
+              <Grid item xs={6}>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>Cloud Family</InputLabel>
+                  <Select
+                    value={addFormData.cloud_family_id || ""}
+                    onChange={(e) => handleAddFormChange("cloud_family_id", e.target.value)}
+                    label="Cloud Family"
+                    sx={{ minHeight: 44 }}
+                  >
+                    <MenuItem value="">None</MenuItem>
+                    {cloudFamilies.map((cf) => (
+                      <MenuItem key={cf.id} value={cf.id}>
+                        {cf.code}{cf.region?.name ? ` (${cf.region.name})` : ""}
+                      </MenuItem>
+                    ))}
+                  </Select>
                 </FormControl>
               </Grid>
             </Grid>
+
+            {/* CPU Info */}
+            <MDTypography variant="subtitle2" fontWeight="medium" mt={2} mb={1}>
+              CPU Configuration
+            </MDTypography>
+            <Grid container spacing={2}>
+              <Grid item xs={3}>
+                <TextField
+                  fullWidth
+                  label="CPU Model"
+                  value={addFormData.cpu_model}
+                  onChange={(e) => handleAddFormChange("cpu_model", e.target.value)}
+                  margin="normal"
+                  variant="outlined"
+                />
+              </Grid>
+              <Grid item xs={3}>
+                <TextField
+                  fullWidth
+                  label="Sockets"
+                  type="number"
+                  value={addFormData.sockets}
+                  onChange={(e) => handleAddFormChange("sockets", e.target.value)}
+                  margin="normal"
+                  variant="outlined"
+                  inputProps={{ min: 1 }}
+                />
+              </Grid>
+              <Grid item xs={3}>
+                <TextField
+                  fullWidth
+                  label="Clock Speed (GHz)"
+                  type="number"
+                  value={addFormData.clockspeed}
+                  onChange={(e) => handleAddFormChange("clockspeed", e.target.value)}
+                  margin="normal"
+                  variant="outlined"
+                  inputProps={{ min: 0, step: 0.1 }}
+                />
+              </Grid>
+              <Grid item xs={3}>
+                <TextField
+                  fullWidth
+                  label="Cores *"
+                  type="number"
+                  value={addFormData.cores}
+                  onChange={(e) => handleAddFormChange("cores", e.target.value)}
+                  onBlur={() => setAddFormTouched((prev) => ({ ...prev, cores: true }))}
+                  margin="normal"
+                  variant="outlined"
+                  error={addFormTouched.cores && !!validateCores(addFormData.cores)}
+                  helperText={addFormTouched.cores && validateCores(addFormData.cores)}
+                  inputProps={{ min: 1 }}
+                />
+              </Grid>
+            </Grid>
+
+            {/* Memory & Network */}
+            <MDTypography variant="subtitle2" fontWeight="medium" mt={2} mb={1}>
+              Memory & Network
+            </MDTypography>
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  label="RAM (GB) *"
+                  type="number"
+                  value={addFormData.ram}
+                  onChange={(e) => handleAddFormChange("ram", e.target.value)}
+                  onBlur={() => setAddFormTouched((prev) => ({ ...prev, ram: true }))}
+                  margin="normal"
+                  variant="outlined"
+                  error={addFormTouched.ram && !!validateRam(addFormData.ram)}
+                  helperText={addFormTouched.ram && validateRam(addFormData.ram)}
+                  inputProps={{ min: 1 }}
+                />
+              </Grid>
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  label="Network BW (Gbps) *"
+                  type="number"
+                  value={addFormData.networkbw}
+                  onChange={(e) => handleAddFormChange("networkbw", e.target.value)}
+                  onBlur={() => setAddFormTouched((prev) => ({ ...prev, networkbw: true }))}
+                  margin="normal"
+                  variant="outlined"
+                  error={addFormTouched.networkbw && !!validateNetworkbw(addFormData.networkbw)}
+                  helperText={addFormTouched.networkbw && validateNetworkbw(addFormData.networkbw)}
+                  inputProps={{ min: 1 }}
+                />
+              </Grid>
+            </Grid>
+
+            {/* GPU Info - Moved above disk sections */}
+            <MDTypography variant="subtitle2" fontWeight="medium" mt={2} mb={1}>
+              GPU Configuration
+            </MDTypography>
+            <Grid container spacing={2}>
+              <Grid item xs={3}>
+                <TextField
+                  fullWidth
+                  label="GPU Vendor"
+                  value={addFormData.gpu_vendor}
+                  onChange={(e) => handleAddFormChange("gpu_vendor", e.target.value)}
+                  margin="normal"
+                  variant="outlined"
+                />
+              </Grid>
+              <Grid item xs={3}>
+                <TextField
+                  fullWidth
+                  label="GPU Model"
+                  value={addFormData.gpu_model}
+                  onChange={(e) => handleAddFormChange("gpu_model", e.target.value)}
+                  margin="normal"
+                  variant="outlined"
+                />
+              </Grid>
+              <Grid item xs={3}>
+                <TextField
+                  fullWidth
+                  label="GPU Count"
+                  type="number"
+                  value={addFormData.gpu_count}
+                  onChange={(e) => handleAddFormChange("gpu_count", e.target.value)}
+                  margin="normal"
+                  variant="outlined"
+                  inputProps={{ min: 0 }}
+                />
+              </Grid>
+              <Grid item xs={3}>
+                <TextField
+                  fullWidth
+                  label="GPU Memory (GB)"
+                  type="number"
+                  value={addFormData.gpu_mempry_gb}
+                  onChange={(e) => handleAddFormChange("gpu_mempry_gb", e.target.value)}
+                  margin="normal"
+                  variant="outlined"
+                  inputProps={{ min: 0 }}
+                />
+              </Grid>
+            </Grid>
+
+            {/* Advanced Section - Collapsible */}
+            <MDBox mt={2}>
+              <MDButton
+                variant="text"
+                color="info"
+                size="small"
+                onClick={() => setAddAdvancedOpen(!addAdvancedOpen)}
+                sx={{ textTransform: "none", p: 0 }}
+              >
+                <Icon sx={{ mr: 0.5 }}>{addAdvancedOpen ? "expand_less" : "expand_more"}</Icon>
+                {addAdvancedOpen ? "Hide Advanced" : "Show Advanced"}
+              </MDButton>
+            </MDBox>
+            <Collapse in={addAdvancedOpen}>
+              {/* OS Disk */}
+              <MDTypography variant="subtitle2" fontWeight="medium" mt={2} mb={1}>
+                OS Disk
+              </MDTypography>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel>OS Disk Type</InputLabel>
+                    <Select
+                      value={addFormData.os_disk_type || ""}
+                      onChange={(e) => handleAddFormChange("os_disk_type", e.target.value)}
+                      label="OS Disk Type"
+                      sx={{ minHeight: 44 }}
+                    >
+                      <MenuItem value="">None</MenuItem>
+                      {DISK_TYPES.map((type) => (
+                        <MenuItem key={type} value={type}>
+                          {type}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={6}>
+                  <TextField
+                    fullWidth
+                    label="OS Disk Size (GB)"
+                    type="number"
+                    value={addFormData.os_disk_size}
+                    onChange={(e) => handleAddFormChange("os_disk_size", e.target.value)}
+                    margin="normal"
+                    variant="outlined"
+                    inputProps={{ min: 1 }}
+                  />
+                </Grid>
+              </Grid>
+
+              {/* Data Disks */}
+              <MDTypography variant="subtitle2" fontWeight="medium" mt={2} mb={1}>
+                Data Disks
+              </MDTypography>
+              <Grid container spacing={2}>
+                <Grid item xs={3}>
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel>Data Disk 1 Type</InputLabel>
+                    <Select
+                      value={addFormData.data_disk1_type || ""}
+                      onChange={(e) => handleAddFormChange("data_disk1_type", e.target.value)}
+                      label="Data Disk 1 Type"
+                      sx={{ minHeight: 44 }}
+                    >
+                      <MenuItem value="">None</MenuItem>
+                      {DISK_TYPES.map((type) => (
+                        <MenuItem key={type} value={type}>
+                          {type}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={3}>
+                  <TextField
+                    fullWidth
+                    label="Size (GB)"
+                    type="number"
+                    value={addFormData.data_disk1_size}
+                    onChange={(e) => handleAddFormChange("data_disk1_size", e.target.value)}
+                    margin="normal"
+                    variant="outlined"
+                    inputProps={{ min: 1 }}
+                  />
+                </Grid>
+                <Grid item xs={3}>
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel>Data Disk 2 Type</InputLabel>
+                    <Select
+                      value={addFormData.data_disk2_type || ""}
+                      onChange={(e) => handleAddFormChange("data_disk2_type", e.target.value)}
+                      label="Data Disk 2 Type"
+                      sx={{ minHeight: 44 }}
+                    >
+                      <MenuItem value="">None</MenuItem>
+                      {DISK_TYPES.map((type) => (
+                        <MenuItem key={type} value={type}>
+                          {type}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={3}>
+                  <TextField
+                    fullWidth
+                    label="Size (GB)"
+                    type="number"
+                    value={addFormData.data_disk2_size}
+                    onChange={(e) => handleAddFormChange("data_disk2_size", e.target.value)}
+                    margin="normal"
+                    variant="outlined"
+                    inputProps={{ min: 1 }}
+                  />
+                </Grid>
+              </Grid>
+              <Grid container spacing={2}>
+                <Grid item xs={3}>
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel>Data Disk 3 Type</InputLabel>
+                    <Select
+                      value={addFormData.data_disk3_type || ""}
+                      onChange={(e) => handleAddFormChange("data_disk3_type", e.target.value)}
+                      label="Data Disk 3 Type"
+                      sx={{ minHeight: 44 }}
+                    >
+                      <MenuItem value="">None</MenuItem>
+                      {DISK_TYPES.map((type) => (
+                        <MenuItem key={type} value={type}>
+                          {type}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={3}>
+                  <TextField
+                    fullWidth
+                    label="Size (GB)"
+                    type="number"
+                    value={addFormData.data_disk3_size}
+                    onChange={(e) => handleAddFormChange("data_disk3_size", e.target.value)}
+                    margin="normal"
+                    variant="outlined"
+                    inputProps={{ min: 1 }}
+                  />
+                </Grid>
+                <Grid item xs={3}>
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel>Data Disk 4 Type</InputLabel>
+                    <Select
+                      value={addFormData.data_disk4_type || ""}
+                      onChange={(e) => handleAddFormChange("data_disk4_type", e.target.value)}
+                      label="Data Disk 4 Type"
+                      sx={{ minHeight: 44 }}
+                    >
+                      <MenuItem value="">None</MenuItem>
+                      {DISK_TYPES.map((type) => (
+                        <MenuItem key={type} value={type}>
+                          {type}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid item xs={3}>
+                  <TextField
+                    fullWidth
+                    label="Size (GB)"
+                    type="number"
+                    value={addFormData.data_disk4_size}
+                    onChange={(e) => handleAddFormChange("data_disk4_size", e.target.value)}
+                    margin="normal"
+                    variant="outlined"
+                    inputProps={{ min: 1 }}
+                  />
+                </Grid>
+              </Grid>
+            </Collapse>
           </MDBox>
         </DialogContent>
         <DialogActions>
