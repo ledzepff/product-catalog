@@ -40,7 +40,11 @@ import Dashboard from "layouts/dashboard";
 import Tables from "layouts/tables";
 import Tables2 from "layouts/tables2";
 import Tables2_1 from "layouts/tables2-1";
+import Attributes from "layouts/attributes";
+import ProductAttributes from "layouts/product-attributes";
+import Products from "layouts/products";
 import Compute from "layouts/compute";
+import Storages from "layouts/storages";
 import Regions from "layouts/regions";
 import Clouds from "layouts/clouds";
 import Billing from "layouts/billing";
@@ -69,6 +73,30 @@ const routes = [
     icon: <Icon fontSize="small">table_view</Icon>,
     route: "/tables",
     component: <Tables />,
+  },
+  {
+    type: "collapse",
+    name: "Attributes",
+    key: "attributes",
+    icon: <Icon fontSize="small">tune</Icon>,
+    route: "/attributes",
+    component: <Attributes />,
+  },
+  {
+    type: "collapse",
+    name: "Type Attributes",
+    key: "type-attributes",
+    icon: <Icon fontSize="small">link</Icon>,
+    route: "/type-attributes",
+    component: <ProductAttributes />,
+  },
+  {
+    type: "collapse",
+    name: "Products",
+    key: "products",
+    icon: <Icon fontSize="small">inventory</Icon>,
+    route: "/products",
+    component: <Products />,
   },
   {
     type: "collapse",
@@ -110,6 +138,13 @@ const routes = [
         route: "/compute",
         icon: <Icon fontSize="small">computer</Icon>,
         component: <Compute />,
+      },
+      {
+        name: "Storages",
+        key: "storages",
+        route: "/storages",
+        icon: <Icon fontSize="small">storage</Icon>,
+        component: <Storages />,
       },
     ],
   },
