@@ -28,10 +28,31 @@ import MDBox from "components/MDBox";
 import MDTypography from "components/MDTypography";
 
 function Breadcrumbs({ icon, title, route, light }) {
-  const routes = route.slice(0, -1);
+  // Filter out "template" from routes and decode URL-encoded strings
+  const routes = route
+    .slice(0, -1)
+    .filter((el) => el !== "template");
+
+  // Decode and format the title (handle URL-encoded strings)
+  const formatTitle = (text) => {
+    try {
+      return decodeURIComponent(text).replace(/-/g, " ");
+    } catch {
+      return text.replace(/-/g, " ");
+    }
+  };
+
+  // Decode and format route segment for display
+  const formatRouteSegment = (segment) => {
+    try {
+      return decodeURIComponent(segment);
+    } catch {
+      return segment;
+    }
+  };
 
   return (
-    <MDBox mr={{ xs: 0, xl: 8 }}>
+    <MDBox mr={{ xs: 0, xl: 8 }} sx={{ whiteSpace: "nowrap" }}>
       <MuiBreadcrumbs
         sx={{
           "& .MuiBreadcrumbs-separator": {
@@ -61,29 +82,21 @@ function Breadcrumbs({ icon, title, route, light }) {
               opacity={light ? 0.8 : 0.5}
               sx={{ lineHeight: 0 }}
             >
-              {el}
+              {formatRouteSegment(el)}
             </MDTypography>
           </Link>
         ))}
         <MDTypography
+          component="span"
           variant="button"
-          fontWeight="regular"
+          fontWeight="bold"
           textTransform="capitalize"
           color={light ? "white" : "dark"}
           sx={{ lineHeight: 0 }}
         >
-          {title.replace("-", " ")}
+          {formatTitle(title)}
         </MDTypography>
       </MuiBreadcrumbs>
-      <MDTypography
-        fontWeight="bold"
-        textTransform="capitalize"
-        variant="h6"
-        color={light ? "white" : "dark"}
-        noWrap
-      >
-        {title.replace("-", " ")}
-      </MDTypography>
     </MDBox>
   );
 }

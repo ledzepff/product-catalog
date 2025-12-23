@@ -42,7 +42,7 @@ function navbar(theme, ownerState) {
 
       return color;
     },
-    top: absolute ? 0 : pxToRem(12),
+    top: absolute ? 0 : pxToRem(9),
     minHeight: pxToRem(75),
     display: "grid",
     alignItems: "center",

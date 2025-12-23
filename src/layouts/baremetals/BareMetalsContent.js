@@ -631,7 +631,7 @@ function BareMetalsContent() {
     { Header: "os disk", accessor: "os_disk", width: "10%", align: "left" },
     { Header: "service", accessor: "service_name", width: "10%", align: "left" },
     { Header: "service type", accessor: "service_type_name", width: "10%", align: "left" },
-    { Header: "actions", accessor: "actions", width: "10%", align: "center" },
+    { Header: "actions", accessor: "actions", width: "10%", align: "center", disableSortBy: true },
   ];
 
   // Transform data to rows format for DataTable
@@ -839,8 +839,8 @@ function BareMetalsContent() {
                 <DataTable
                   table={{ columns, rows }}
                   isSorted={true}
-                  entriesPerPage={false}
-                  showTotalEntries={false}
+                  entriesPerPage={{ defaultValue: 10, entries: [5, 10, 15, 20, 25] }}
+                  showTotalEntries={true}
                   noEndBorder
                   canSearch={false}
                 />

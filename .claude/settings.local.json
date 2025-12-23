@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git commit:*)",
+      "Bash(git add:*)",
+      "Bash(npx supabase:*)",
+      "Bash(findstr:*)",
+      "Bash(dir:*)",
+      "Bash(timeout 30 npm start:*)",
+      "Bash(npm run build:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

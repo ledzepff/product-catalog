@@ -19,23 +19,35 @@ import PropTypes from "prop-types";
 // Material Dashboard 2 React components
 import MDBox from "components/MDBox";
 
-function DataTableBodyCell({ noBorder, align, children }) {
+function DataTableBodyCell({ noBorder, align, children, fullWidth }) {
   return (
     <MDBox
       component="td"
       textAlign={align}
-      py={1.5}
+      py={1.2}
       px={3}
       sx={({ palette: { light }, typography: { size }, borders: { borderWidth } }) => ({
         fontSize: size.sm,
         borderBottom: noBorder ? "none" : `${borderWidth[1]} solid ${light.main}`,
+        ...(fullWidth && {
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+        }),
       })}
     >
       <MDBox
-        display="inline-block"
-        width="max-content"
+        display={fullWidth ? "block" : "inline-block"}
+        width={fullWidth ? "100%" : "max-content"}
         color="text"
-        sx={{ verticalAlign: "middle" }}
+        sx={{
+          verticalAlign: "middle",
+          ...(fullWidth && {
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }),
+        }}
       >
         {children}
       </MDBox>
@@ -47,6 +59,7 @@ function DataTableBodyCell({ noBorder, align, children }) {
 DataTableBodyCell.defaultProps = {
   noBorder: false,
   align: "left",
+  fullWidth: false,
 };
 
 // Typechecking props for the DataTableBodyCell
@@ -54,6 +67,7 @@ DataTableBodyCell.propTypes = {
   children: PropTypes.node.isRequired,
   noBorder: PropTypes.bool,
   align: PropTypes.oneOf(["left", "right", "center"]),
+  fullWidth: PropTypes.bool,
 };
 
 export default DataTableBodyCell;

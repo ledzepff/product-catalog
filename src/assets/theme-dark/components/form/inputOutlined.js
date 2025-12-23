@@ -42,6 +42,22 @@ const inputOutlined = {
           borderColor: info.main,
         },
       },
+
+      "& .MuiOutlinedInput-input::placeholder": {
+        color: grey[400],
+        opacity: 1,
+        fontWeight: 400,
+        fontSize: size.sm,
+      },
+
+      "& .MuiInputAdornment-root": {
+        color: grey[400],
+        "& .MuiTypography-root": {
+          color: grey[400],
+          fontSize: size.sm,
+          fontWeight: 400,
+        },
+      },
     },
 
     notchedOutline: {
@@ -52,9 +68,17 @@ const inputOutlined = {
       color: white.main,
       padding: pxToRem(12),
       backgroundColor: transparent.main,
+      fontWeight: 400,
+      fontSize: size.sm,
 
       "&::-webkit-input-placeholder": {
-        color: grey[100],
+        color: grey[400],
+      },
+
+      "&::placeholder": {
+        color: grey[400],
+        opacity: 1,
+        fontWeight: 400,
       },
     },
 
@@ -64,8 +88,12 @@ const inputOutlined = {
     },
 
     multiline: {
-      color: grey[700],
+      color: white.main,
       padding: 0,
+    },
+
+    inputAdornedEnd: {
+      paddingRight: pxToRem(14),
     },
   },
 };

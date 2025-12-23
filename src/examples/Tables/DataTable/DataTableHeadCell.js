@@ -13,6 +13,8 @@ Coded by www.creative-tim.com
 * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 */
 
+import { forwardRef } from "react";
+
 // prop-types is a library for typechecking of props
 import PropTypes from "prop-types";
 
@@ -25,18 +27,27 @@ import MDBox from "components/MDBox";
 // Material Dashboard 2 React contexts
 import { useMaterialUIController } from "context";
 
-function DataTableHeadCell({ width, children, sorted, align, ...rest }) {
+const DataTableHeadCell = forwardRef(({ width, children, sorted, align, style, onSortClick, ...rest }, ref) => {
   const [controller] = useMaterialUIController();
   const { darkMode } = controller;
+
+  const handleArrowClick = (e) => {
+    if (onSortClick) {
+      e.stopPropagation();
+      onSortClick(e);
+    }
+  };
 
   return (
     <MDBox
       component="th"
+      ref={ref}
       width={width}
-      py={1.5}
+      py={1.2}
       px={3}
       sx={({ palette: { light }, borders: { borderWidth } }) => ({
         borderBottom: `${borderWidth[1]} solid ${light.main}`,
+        ...style,
       })}
     >
       <MDBox
@@ -61,6 +72,7 @@ function DataTableHeadCell({ width, children, sorted, align, ...rest }) {
           <MDBox
             position="relative"
             ml={0.5}
+            onClick={handleArrowClick}
             sx={({ typography: { size } }) => ({
               fontSize: size.lg,
               display: "flex",
@@ -69,6 +81,7 @@ function DataTableHeadCell({ width, children, sorted, align, ...rest }) {
               height: "20px",
               width: "18px",
               flexShrink: 0,
+              cursor: "pointer",
             })}
           >
             <MDBox
@@ -92,13 +105,15 @@ function DataTableHeadCell({ width, children, sorted, align, ...rest }) {
       </MDBox>
     </MDBox>
   );
-}
+});
 
 // Setting default values for the props of DataTableHeadCell
 DataTableHeadCell.defaultProps = {
   width: "auto",
   sorted: "none",
   align: "left",
+  style: {},
+  onSortClick: null,
 };
 
 // Typechecking props for the DataTableHeadCell
@@ -107,6 +122,11 @@ DataTableHeadCell.propTypes = {
   children: PropTypes.node.isRequired,
   sorted: PropTypes.oneOf([false, "none", "asce", "desc"]),
   align: PropTypes.oneOf(["left", "right", "center"]),
+  style: PropTypes.object,
+  onSortClick: PropTypes.func,
 };
+
+// Display name for debugging
+DataTableHeadCell.displayName = "DataTableHeadCell";
 
 export default DataTableHeadCell;

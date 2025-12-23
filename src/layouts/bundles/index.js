@@ -435,7 +435,7 @@ function Bundles() {
     { Header: "service", accessor: "service_name", width: "12%", align: "left" },
     { Header: "service type", accessor: "service_type_name", width: "14%", align: "left" },
     { Header: "cloud family", accessor: "cloud_family_name", width: "12%", align: "left" },
-    { Header: "actions", accessor: "actions", width: "12%", align: "center" },
+    { Header: "actions", accessor: "actions", width: "12%", align: "center", disableSortBy: true },
   ];
 
   // Transform data to rows format for DataTable

@@ -13,7 +13,7 @@ Coded by www.creative-tim.com
 * The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 */
 
-/** 
+/**
   All of the routes for the Material Dashboard 2 React are added here,
   You can add a new route, customize the routes and delete the routes here.
 
@@ -22,7 +22,7 @@ Coded by www.creative-tim.com
 
   For adding a new route you can follow the existing routes in the routes array.
   1. The `type` key with the `collapse` value is used for a route.
-  2. The `type` key with the `title` value is used for a title inside the Sidenav. 
+  2. The `type` key with the `title` value is used for a title inside the Sidenav.
   3. The `type` key with the `divider` value is used for a divider between Sidenav items.
   4. The `name` key is used for the name of the route on the Sidenav.
   5. The `key` key is used for the key of the route (It will help you with the key prop inside a loop).
@@ -37,16 +37,12 @@ Coded by www.creative-tim.com
 
 // Material Dashboard 2 React layouts
 import Dashboard from "layouts/dashboard";
-import Tables from "layouts/tables";
 import Tables2 from "layouts/tables2";
 import Tables2_1 from "layouts/tables2-1";
 import Attributes from "layouts/attributes";
 import ProductAttributes from "layouts/product-attributes";
 import Products from "layouts/products";
-import Compute from "layouts/compute";
-import Storages from "layouts/storages";
 import Regions from "layouts/regions";
-import Clouds from "layouts/clouds";
 import Billing from "layouts/billing";
 import RTL from "layouts/rtl";
 import Notifications from "layouts/notifications";
@@ -65,14 +61,6 @@ const routes = [
     icon: <Icon fontSize="small">dashboard</Icon>,
     route: "/dashboard",
     component: <Dashboard />,
-  },
-  {
-    type: "collapse",
-    name: "Tables",
-    key: "tables",
-    icon: <Icon fontSize="small">table_view</Icon>,
-    route: "/tables",
-    component: <Tables />,
   },
   {
     type: "collapse",
@@ -124,27 +112,6 @@ const routes = [
         route: "/service-types",
         icon: <Icon fontSize="small">category</Icon>,
         component: <Tables2_1 />,
-      },
-      {
-        name: "Clouds",
-        key: "clouds",
-        route: "/clouds",
-        icon: <Icon fontSize="small">cloud</Icon>,
-        component: <Clouds />,
-      },
-      {
-        name: "Compute",
-        key: "compute",
-        route: "/compute",
-        icon: <Icon fontSize="small">computer</Icon>,
-        component: <Compute />,
-      },
-      {
-        name: "Storages",
-        key: "storages",
-        route: "/storages",
-        icon: <Icon fontSize="small">storage</Icon>,
-        component: <Storages />,
       },
     ],
   },

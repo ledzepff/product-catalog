@@ -380,8 +380,8 @@ function ServiceTypes() {
     if (!name || name.trim().length === 0) {
       return "Name is required";
     }
-    if (name.trim().length < 5) {
-      return "Name must be at least 5 characters long";
+    if (name.trim().length < 3) {
+      return "Name must be at least 3 characters long";
     }
     return "";
   };
@@ -437,6 +437,7 @@ function ServiceTypes() {
       accessor: "description",
       width: "30%",
       align: "left",
+      fullWidth: true,
       sortType: (rowA, rowB) => {
         const a = rowA.original.description_raw || "";
         const b = rowB.original.description_raw || "";
@@ -455,7 +456,7 @@ function ServiceTypes() {
       },
     },
     { Header: "illustration", accessor: "illustration", width: "15%", align: "center" },
-    { Header: "actions", accessor: "actions", width: "20%", align: "center" },
+    { Header: "actions", accessor: "actions", width: "20%", align: "center", disableSortBy: true },
   ];
 
   // Transform data to rows format for DataTable
@@ -467,9 +468,7 @@ function ServiceTypes() {
     ),
     name_raw: row.name || "",
     description: (
-      <MDTypography variant="caption" color="text">
-        {row.description || "-"}
-      </MDTypography>
+      <span title={row.description || ""}>{row.description || "-"}</span>
     ),
     description_raw: row.description || "",
     service: (

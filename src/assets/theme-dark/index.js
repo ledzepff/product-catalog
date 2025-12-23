@@ -105,6 +105,17 @@ export default createTheme({
         ...container,
       },
     },
+    MuiGrid: {
+      styleOverrides: {
+        root: {
+          "& > .MuiGrid-item": {
+            paddingLeft: "16px",
+            paddingRight: "16px",
+            paddingTop: "24px",
+          },
+        },
+      },
+    },
     MuiDrawer: { ...sidenav },
     MuiList: { ...list },
     MuiListItem: { ...listItem },

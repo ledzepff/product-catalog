@@ -382,6 +382,7 @@ function Services() {
       accessor: "description",
       width: "45%",
       align: "left",
+      fullWidth: true,
       sortType: (rowA, rowB) => {
         const a = rowA.original.description_raw || "";
         const b = rowB.original.description_raw || "";
@@ -389,7 +390,7 @@ function Services() {
       },
     },
     { Header: "illustration", accessor: "illustration", width: "15%", align: "center" },
-    { Header: "actions", accessor: "actions", width: "20%", align: "center" },
+    { Header: "actions", accessor: "actions", width: "20%", align: "center", disableSortBy: true },
   ];
 
   // Transform data to rows format for DataTable
@@ -401,9 +402,7 @@ function Services() {
     ),
     name_raw: row.name || "",
     description: (
-      <MDTypography variant="caption" color="text">
-        {row.description || "-"}
-      </MDTypography>
+      <span title={row.description || ""}>{row.description || "-"}</span>
     ),
     description_raw: row.description || "",
     illustration: row.illustration ? (

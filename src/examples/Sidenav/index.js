@@ -53,6 +53,7 @@ function Sidenav({ color, brand, brandName, routes, ...rest }) {
   const location = useLocation();
   const collapseName = location.pathname.replace("/", "");
   const [openCollapse, setOpenCollapse] = useState(null);
+  const [openNestedCollapse, setOpenNestedCollapse] = useState(null);
 
   let textColor = "white";
 
@@ -66,6 +67,10 @@ function Sidenav({ color, brand, brandName, routes, ...rest }) {
 
   const handleCollapseToggle = (key) => {
     setOpenCollapse(openCollapse === key ? null : key);
+  };
+
+  const handleNestedCollapseToggle = (key) => {
+    setOpenNestedCollapse(openNestedCollapse === key ? null : key);
   };
 
   useEffect(() => {
@@ -88,13 +93,23 @@ function Sidenav({ color, brand, brandName, routes, ...rest }) {
     return () => window.removeEventListener("resize", handleMiniSidenav);
   }, [dispatch, location]);
 
-  // Auto-open collapse if current route is a child
+  // Auto-open collapse if current route is a child (supports nested collapses)
   useEffect(() => {
     routes.forEach((route) => {
       if (route.collapse) {
         route.collapse.forEach((child) => {
+          // Check if this child is a direct route match
           if (location.pathname === child.route) {
             setOpenCollapse(route.key);
+          }
+          // Check if this child has nested collapse (group)
+          if (child.collapse) {
+            child.collapse.forEach((nestedChild) => {
+              if (location.pathname === nestedChild.route) {
+                setOpenCollapse(route.key);
+                setOpenNestedCollapse(child.key);
+              }
+            });
           }
         });
       }
@@ -139,17 +154,66 @@ function Sidenav({ color, brand, brandName, routes, ...rest }) {
               </MDBox>
               <Collapse in={openCollapse === key} timeout="auto" unmountOnExit>
                 <List component="div" disablePadding>
-                  {collapse.map((child) => (
-                    <NavLink key={child.key} to={child.route}>
-                      <MDBox pl={4}>
-                        <SidenavCollapse
-                          name={child.name}
-                          icon={child.icon}
-                          active={location.pathname === child.route}
-                        />
+                  {collapse.map((child) =>
+                    // Check if child has nested collapse (group with templates)
+                    child.collapse && child.collapse.length > 0 ? (
+                      <MDBox key={child.key}>
+                        <MDBox
+                          onClick={() => handleNestedCollapseToggle(child.key)}
+                          sx={{ cursor: "pointer", position: "relative" }}
+                        >
+                          <MDBox pl={4}>
+                            <SidenavCollapse
+                              name={child.name}
+                              icon={child.icon}
+                              active={openNestedCollapse === child.key}
+                            />
+                          </MDBox>
+                          <Icon
+                            sx={{
+                              position: "absolute",
+                              right: 16,
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              color:
+                                transparentSidenav || (whiteSidenav && !darkMode)
+                                  ? "dark"
+                                  : "rgba(255, 255, 255, 0.8)",
+                              fontSize: "1rem !important",
+                            }}
+                          >
+                            {openNestedCollapse === child.key ? "expand_less" : "expand_more"}
+                          </Icon>
+                        </MDBox>
+                        <Collapse in={openNestedCollapse === child.key} timeout="auto" unmountOnExit>
+                          <List component="div" disablePadding>
+                            {child.collapse.map((nestedChild) => (
+                              <NavLink key={nestedChild.key} to={nestedChild.route}>
+                                <MDBox pl={6}>
+                                  <SidenavCollapse
+                                    name={nestedChild.name}
+                                    icon={nestedChild.icon}
+                                    active={location.pathname === nestedChild.route}
+                                  />
+                                </MDBox>
+                              </NavLink>
+                            ))}
+                          </List>
+                        </Collapse>
                       </MDBox>
-                    </NavLink>
-                  ))}
+                    ) : (
+                      // Regular child item (direct route)
+                      <NavLink key={child.key} to={child.route}>
+                        <MDBox pl={4}>
+                          <SidenavCollapse
+                            name={child.name}
+                            icon={child.icon}
+                            active={location.pathname === child.route}
+                          />
+                        </MDBox>
+                      </NavLink>
+                    )
+                  )}
                 </List>
               </Collapse>
             </MDBox>

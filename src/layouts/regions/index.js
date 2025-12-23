@@ -276,7 +276,7 @@ function Regions() {
         return a.localeCompare(b);
       },
     },
-    { Header: "actions", accessor: "actions", width: "20%", align: "center" },
+    { Header: "actions", accessor: "actions", width: "20%", align: "center", disableSortBy: true },
   ];
 
   // Transform data to rows format for DataTable

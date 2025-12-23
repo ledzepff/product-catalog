@@ -26,6 +26,7 @@ const inputLabel = {
       fontSize: size.sm,
       color: text.main,
       lineHeight: 0.9,
+      fontWeight: 400,
 
       "&.Mui-focused": {
         color: info.main,
@@ -34,6 +35,7 @@ const inputLabel = {
       "&.MuiInputLabel-shrink": {
         lineHeight: 1.5,
         fontSize: size.md,
+        fontWeight: 400,
 
         "~ .MuiInputBase-root .MuiOutlinedInput-notchedOutline legend": {
           fontSize: "0.85em",
