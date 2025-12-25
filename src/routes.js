@@ -50,6 +50,17 @@ import Profile from "layouts/profile";
 import SignIn from "layouts/authentication/sign-in";
 import SignUp from "layouts/authentication/sign-up";
 
+// Pricing layouts
+import {
+  Units,
+  Periods,
+  MeterValueTypes,
+  Meters,
+  PricingTypes,
+  PricingAttributes,
+  RatePlans,
+} from "layouts/pricing";
+
 // @mui icons
 import Icon from "@mui/material/Icon";
 
@@ -117,6 +128,63 @@ const routes = [
   },
   {
     type: "collapse",
+    name: "Pricing",
+    key: "pricing",
+    icon: <Icon fontSize="small">attach_money</Icon>,
+    collapse: [
+      {
+        name: "Units",
+        key: "units",
+        route: "/pricing/units",
+        icon: <Icon fontSize="small">straighten</Icon>,
+        component: <Units />,
+      },
+      {
+        name: "Periods",
+        key: "periods",
+        route: "/pricing/periods",
+        icon: <Icon fontSize="small">schedule</Icon>,
+        component: <Periods />,
+      },
+      {
+        name: "Meter Value Types",
+        key: "meter-value-types",
+        route: "/pricing/meter-value-types",
+        icon: <Icon fontSize="small">speed</Icon>,
+        component: <MeterValueTypes />,
+      },
+      {
+        name: "Meters",
+        key: "meters",
+        route: "/pricing/meters",
+        icon: <Icon fontSize="small">av_timer</Icon>,
+        component: <Meters />,
+      },
+      {
+        name: "Pricing Types",
+        key: "pricing-types",
+        route: "/pricing/pricing-types",
+        icon: <Icon fontSize="small">label</Icon>,
+        component: <PricingTypes />,
+      },
+      {
+        name: "Pricing Attributes",
+        key: "pricing-attributes",
+        route: "/pricing/pricing-attributes",
+        icon: <Icon fontSize="small">tune</Icon>,
+        component: <PricingAttributes />,
+      },
+      {
+        name: "Rate Plans",
+        key: "rate-plans",
+        route: "/pricing/rate-plans",
+        icon: <Icon fontSize="small">price_change</Icon>,
+        component: <RatePlans />,
+      },
+    ],
+  },
+  {
+    type: "hidden",
     name: "Billing",
     key: "billing",
     icon: <Icon fontSize="small">receipt_long</Icon>,
@@ -124,7 +192,7 @@ const routes = [
     component: <Billing />,
   },
   {
-    type: "collapse",
+    type: "hidden",
     name: "RTL",
     key: "rtl",
     icon: <Icon fontSize="small">format_textdirection_r_to_l</Icon>,
@@ -132,7 +200,7 @@ const routes = [
     component: <RTL />,
   },
   {
-    type: "collapse",
+    type: "hidden",
     name: "Notifications",
     key: "notifications",
     icon: <Icon fontSize="small">notifications</Icon>,
@@ -140,7 +208,7 @@ const routes = [
     component: <Notifications />,
   },
   {
-    type: "collapse",
+    type: "hidden",
     name: "Profile",
     key: "profile",
     icon: <Icon fontSize="small">person</Icon>,
@@ -148,7 +216,7 @@ const routes = [
     component: <Profile />,
   },
   {
-    type: "collapse",
+    type: "hidden",
     name: "Sign In",
     key: "sign-in",
     icon: <Icon fontSize="small">login</Icon>,
@@ -156,7 +224,7 @@ const routes = [
     component: <SignIn />,
   },
   {
-    type: "collapse",
+    type: "hidden",
     name: "Sign Up",
     key: "sign-up",
     icon: <Icon fontSize="small">assignment</Icon>,

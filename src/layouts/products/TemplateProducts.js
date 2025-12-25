@@ -31,6 +31,10 @@ import Checkbox from "@mui/material/Checkbox";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
 import Chip from "@mui/material/Chip";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
+import Box from "@mui/material/Box";
+import Autocomplete from "@mui/material/Autocomplete";
 
 // Material Dashboard 2 React components
 import MDBox from "components/MDBox";
@@ -111,9 +115,45 @@ function TemplateProducts() {
   // Filter state
   const [filterValues, setFilterValues] = useState({});
 
+  // Tab state
+  const [activeTab, setActiveTab] = useState(0);
+
+  // Rate Plans state
+  const [ratePlans, setRatePlans] = useState([]);
+  const [loadingRatePlans, setLoadingRatePlans] = useState(false);
+  const [selectedProductForRatePlan, setSelectedProductForRatePlan] = useState(null);
+  const [ratePlanDialogOpen, setRatePlanDialogOpen] = useState(false);
+  const [editingRatePlan, setEditingRatePlan] = useState(null);
+  const [ratePlanFormData, setRatePlanFormData] = useState({
+    meter_id: "",
+    pricing_attribute_id: "",
+    unit_id: "",
+    region_id: "",
+    currency: "AZN",
+    price: "",
+    description: "",
+    is_default: false,
+  });
+  const [savingRatePlan, setSavingRatePlan] = useState(false);
+  const [deleteRatePlanDialogOpen, setDeleteRatePlanDialogOpen] = useState(false);
+  const [deletingRatePlan, setDeletingRatePlan] = useState(null);
+
+  // Rate plan lookup data
+  const [meters, setMeters] = useState([]);
+  const [pricingAttributes, setPricingAttributes] = useState([]);
+  const [units, setUnits] = useState([]);
+
+  // Rate plans column state
+  const [ratePlanColumnOrder, setRatePlanColumnOrder] = useState([]);
+  const [ratePlanHiddenColumns, setRatePlanHiddenColumns] = useState([]);
+  const [ratePlanColumnMenuAnchor, setRatePlanColumnMenuAnchor] = useState(null);
+  const [ratePlanCurrentPage, setRatePlanCurrentPage] = useState(0);
+
   // localStorage keys for this template
   const columnOrderKey = template ? `product-columns-${template.id}` : null;
   const hiddenColumnsKey = template ? `product-hidden-columns-${template.id}` : null;
+  const ratePlanColumnOrderKey = template ? `rate-plan-columns-${template.id}` : null;
+  const ratePlanHiddenColumnsKey = template ? `rate-plan-hidden-columns-${template.id}` : null;
 
   // Get filterable attributes (those in filter_attributes array)
   const filterableAttributes = useMemo(() => {
@@ -425,11 +465,68 @@ function TemplateProducts() {
     }
   }, []);
 
+  // Fetch rate plan lookup data
+  const fetchRatePlanLookups = useCallback(async () => {
+    try {
+      const [metersRes, pricingAttrsRes, unitsRes] = await Promise.all([
+        supabase.from("meters").select("id, name, value_type:meter_value_types(id, name)").is("deleted_at", null).order("name"),
+        supabase.from("pricing_attributes").select("id, name").is("deleted_at", null).order("name"),
+        supabase.from("units").select("id, name, symbol").is("deleted_at", null).order("name"),
+      ]);
+
+      if (metersRes.error) throw metersRes.error;
+      if (pricingAttrsRes.error) throw pricingAttrsRes.error;
+      if (unitsRes.error) throw unitsRes.error;
+
+      setMeters(metersRes.data || []);
+      setPricingAttributes(pricingAttrsRes.data || []);
+      setUnits(unitsRes.data || []);
+    } catch (err) {
+      console.error("Error fetching rate plan lookups:", err);
+    }
+  }, []);
+
+  // Fetch rate plans for all products of this template
+  const fetchRatePlans = useCallback(async () => {
+    if (!template?.id || !products.length) {
+      setRatePlans([]);
+      return;
+    }
+
+    try {
+      setLoadingRatePlans(true);
+      const productIds = products.map((p) => p.id);
+
+      const { data: ratePlansData, error: fetchError } = await supabase
+        .from("rate_plans")
+        .select(`
+          *,
+          product:products(id, name),
+          meter:meters(id, name),
+          pricing_attribute:pricing_attributes(id, name),
+          unit:units(id, name, symbol),
+          region:region(id, name)
+        `)
+        .in("product_id", productIds)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
+
+      if (fetchError) throw fetchError;
+      setRatePlans(ratePlansData || []);
+    } catch (err) {
+      console.error("Error fetching rate plans:", err);
+      setError(err.message);
+    } finally {
+      setLoadingRatePlans(false);
+    }
+  }, [template?.id, products]);
+
   // Initial data fetch - template info and lookup data
   useEffect(() => {
     fetchTemplateInfo();
     fetchLookupData();
-  }, [fetchTemplateInfo, fetchLookupData]);
+    fetchRatePlanLookups();
+  }, [fetchTemplateInfo, fetchLookupData, fetchRatePlanLookups]);
 
   // Fetch products after template is loaded
   useEffect(() => {
@@ -437,6 +534,41 @@ function TemplateProducts() {
       fetchProducts();
     }
   }, [template?.id, fetchProducts]);
+
+  // Fetch rate plans after products are loaded
+  useEffect(() => {
+    if (products.length > 0) {
+      fetchRatePlans();
+    }
+  }, [products, fetchRatePlans]);
+
+  // Load rate plan column order from localStorage
+  useEffect(() => {
+    if (ratePlanColumnOrderKey) {
+      const savedOrder = localStorage.getItem(ratePlanColumnOrderKey);
+      if (savedOrder) {
+        try {
+          setRatePlanColumnOrder(JSON.parse(savedOrder));
+        } catch {
+          setRatePlanColumnOrder([]);
+        }
+      }
+    }
+  }, [ratePlanColumnOrderKey]);
+
+  // Load rate plan hidden columns from localStorage
+  useEffect(() => {
+    if (ratePlanHiddenColumnsKey) {
+      const savedHidden = localStorage.getItem(ratePlanHiddenColumnsKey);
+      if (savedHidden) {
+        try {
+          setRatePlanHiddenColumns(JSON.parse(savedHidden));
+        } catch {
+          setRatePlanHiddenColumns([]);
+        }
+      }
+    }
+  }, [ratePlanHiddenColumnsKey]);
 
   // Handle form field change
   const handleFormChange = (field, value) => {
@@ -867,6 +999,249 @@ function TemplateProducts() {
     } catch (err) {
       setSnackbar({ open: true, message: `Error: ${err.message}`, severity: "error" });
     }
+  };
+
+  // ============ Rate Plan Handlers ============
+
+  // Save rate plan column order
+  const saveRatePlanColumnOrder = useCallback((order) => {
+    if (ratePlanColumnOrderKey) {
+      localStorage.setItem(ratePlanColumnOrderKey, JSON.stringify(order));
+    }
+  }, [ratePlanColumnOrderKey]);
+
+  // Save rate plan hidden columns
+  const saveRatePlanHiddenColumns = useCallback((hidden) => {
+    if (ratePlanHiddenColumnsKey) {
+      localStorage.setItem(ratePlanHiddenColumnsKey, JSON.stringify(hidden));
+    }
+  }, [ratePlanHiddenColumnsKey]);
+
+  // Toggle rate plan column visibility
+  const toggleRatePlanColumnVisibility = (columnId) => {
+    setRatePlanHiddenColumns((prev) => {
+      const newHidden = prev.includes(columnId)
+        ? prev.filter((id) => id !== columnId)
+        : [...prev, columnId];
+      saveRatePlanHiddenColumns(newHidden);
+      return newHidden;
+    });
+  };
+
+  // Show all rate plan columns
+  const showAllRatePlanColumns = () => {
+    setRatePlanHiddenColumns([]);
+    saveRatePlanHiddenColumns([]);
+  };
+
+  // Handle rate plan column order change
+  const handleRatePlanColumnOrderChange = useCallback((newOrder) => {
+    setRatePlanColumnOrder(newOrder);
+    saveRatePlanColumnOrder(newOrder);
+  }, [saveRatePlanColumnOrder]);
+
+  // Reset rate plan column order
+  const resetRatePlanColumnOrder = () => {
+    setRatePlanColumnOrder([]);
+    if (ratePlanColumnOrderKey) {
+      localStorage.removeItem(ratePlanColumnOrderKey);
+    }
+    setRatePlanHiddenColumns([]);
+    if (ratePlanHiddenColumnsKey) {
+      localStorage.removeItem(ratePlanHiddenColumnsKey);
+    }
+  };
+
+  // Open rate plan form for creating new rate plan
+  const handleCreateRatePlan = (product = null) => {
+    setSelectedProductForRatePlan(product);
+    setEditingRatePlan(null);
+    setRatePlanFormData({
+      meter_id: "",
+      pricing_attribute_id: "",
+      unit_id: "",
+      region_id: "",
+      currency: "AZN",
+      price: "",
+      description: "",
+      is_default: false,
+    });
+    setRatePlanDialogOpen(true);
+  };
+
+  // Helper function to check if meter is percentage type
+  const isPercentageMeter = (meterId) => {
+    if (!meterId) return false;
+    const meter = meters.find((m) => m.id === meterId);
+    return meter?.value_type?.name?.toLowerCase().includes("percent") || false;
+  };
+
+  // Convert percentage for display (0.1 -> 10) and storage (10 -> 0.1)
+  const displayPercentage = (value) => {
+    if (value === "" || value === null || value === undefined) return "";
+    return (parseFloat(value) * 100).toString();
+  };
+
+  const storePercentage = (value) => {
+    if (value === "" || value === null || value === undefined) return null;
+    return parseFloat(value) / 100;
+  };
+
+  // Open rate plan form for editing
+  const handleEditRatePlan = (ratePlan) => {
+    const product = products.find((p) => p.id === ratePlan.product_id);
+    setSelectedProductForRatePlan(product || null);
+    setEditingRatePlan(ratePlan);
+    // Check if meter is percentage type and convert stored value (0.1) to display value (10)
+    const isPercentage = isPercentageMeter(ratePlan.meter_id);
+    const priceDisplay = isPercentage && ratePlan.price != null ? displayPercentage(ratePlan.price) : (ratePlan.price || "");
+    setRatePlanFormData({
+      meter_id: ratePlan.meter_id || "",
+      pricing_attribute_id: ratePlan.pricing_attribute_id || "",
+      unit_id: ratePlan.unit_id || "",
+      region_id: ratePlan.region_id || "",
+      currency: ratePlan.currency || "AZN",
+      price: priceDisplay,
+      description: ratePlan.description || "",
+      is_default: ratePlan.is_default || false,
+    });
+    setRatePlanDialogOpen(true);
+  };
+
+  // Duplicate rate plan
+  const handleDuplicateRatePlan = (ratePlan) => {
+    const product = products.find((p) => p.id === ratePlan.product_id);
+    setSelectedProductForRatePlan(product || null);
+    setEditingRatePlan(null);
+    // Check if meter is percentage type and convert stored value (0.1) to display value (10)
+    const isPercentage = isPercentageMeter(ratePlan.meter_id);
+    const priceDisplay = isPercentage && ratePlan.price != null ? displayPercentage(ratePlan.price) : (ratePlan.price || "");
+    setRatePlanFormData({
+      meter_id: ratePlan.meter_id || "",
+      pricing_attribute_id: ratePlan.pricing_attribute_id || "",
+      unit_id: ratePlan.unit_id || "",
+      region_id: ratePlan.region_id || "",
+      currency: ratePlan.currency || "AZN",
+      price: priceDisplay,
+      description: ratePlan.description ? `${ratePlan.description} (Copy)` : "(Copy)",
+      is_default: false,
+    });
+    setRatePlanDialogOpen(true);
+  };
+
+  // Close rate plan form dialog
+  const handleRatePlanFormClose = () => {
+    setRatePlanDialogOpen(false);
+    setSelectedProductForRatePlan(null);
+    setEditingRatePlan(null);
+    setRatePlanFormData({
+      meter_id: "",
+      pricing_attribute_id: "",
+      unit_id: "",
+      region_id: "",
+      currency: "AZN",
+      price: "",
+      description: "",
+      is_default: false,
+    });
+  };
+
+  // Handle rate plan form change
+  const handleRatePlanFormChange = (field, value) => {
+    setRatePlanFormData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  // Save rate plan
+  const handleSaveRatePlan = async () => {
+    if (!selectedProductForRatePlan) {
+      setSnackbar({ open: true, message: "Please select a product", severity: "error" });
+      return;
+    }
+
+    try {
+      setSavingRatePlan(true);
+
+      // Check if meter is percentage type and convert display value (10) to stored value (0.1)
+      const isPercentage = isPercentageMeter(ratePlanFormData.meter_id);
+      let priceValue = null;
+      if (ratePlanFormData.price) {
+        priceValue = isPercentage ? storePercentage(ratePlanFormData.price) : parseFloat(ratePlanFormData.price);
+      }
+
+      const ratePlanData = {
+        product_id: selectedProductForRatePlan.id,
+        meter_id: ratePlanFormData.meter_id || null,
+        pricing_attribute_id: ratePlanFormData.pricing_attribute_id || null,
+        unit_id: ratePlanFormData.unit_id || null,
+        region_id: ratePlanFormData.region_id || null,
+        currency: ratePlanFormData.currency || null,
+        price: priceValue,
+        description: ratePlanFormData.description || null,
+        is_default: ratePlanFormData.is_default,
+      };
+
+      if (editingRatePlan) {
+        const { error: updateError } = await supabase
+          .from("rate_plans")
+          .update({
+            ...ratePlanData,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", editingRatePlan.id);
+
+        if (updateError) throw updateError;
+      } else {
+        const { error: insertError } = await supabase.from("rate_plans").insert({
+          ...ratePlanData,
+          created_at: new Date().toISOString(),
+        });
+
+        if (insertError) throw insertError;
+      }
+
+      setSnackbar({
+        open: true,
+        message: editingRatePlan ? "Rate plan updated successfully!" : "Rate plan created successfully!",
+        severity: "success",
+      });
+
+      handleRatePlanFormClose();
+      fetchRatePlans();
+    } catch (err) {
+      console.error("Error saving rate plan:", err);
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: "error" });
+    } finally {
+      setSavingRatePlan(false);
+    }
+  };
+
+  // Delete rate plan
+  const handleDeleteRatePlan = async () => {
+    if (!deletingRatePlan) return;
+
+    try {
+      const { error: deleteError } = await supabase
+        .from("rate_plans")
+        .update({
+          deleted_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", deletingRatePlan.id);
+
+      if (deleteError) throw deleteError;
+
+      setSnackbar({ open: true, message: "Rate plan deleted successfully!", severity: "success" });
+      setDeleteRatePlanDialogOpen(false);
+      setDeletingRatePlan(null);
+      fetchRatePlans();
+    } catch (err) {
+      setSnackbar({ open: true, message: `Error: ${err.message}`, severity: "error" });
+    }
+  };
+
+  // Get rate plans for a specific product
+  const getProductRatePlans = (productId) => {
+    return ratePlans.filter((rp) => rp.product_id === productId);
   };
 
   // Render attribute input
@@ -1434,6 +1809,256 @@ function TemplateProducts() {
     });
   }, [filteredProducts, templateAttributes]);
 
+  // ============ Rate Plan Table Configuration ============
+
+  // All rate plan columns
+  const allRatePlanColumns = useMemo(() => [
+    {
+      Header: "Product",
+      accessor: "product",
+      id: "product",
+      width: "15%",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.product_raw || "";
+        const b = rowB.original.product_raw || "";
+        return a.localeCompare(b);
+      },
+    },
+    {
+      Header: "Meter",
+      accessor: "meter",
+      id: "meter",
+      width: "12%",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.meter_raw || "";
+        const b = rowB.original.meter_raw || "";
+        return a.localeCompare(b);
+      },
+    },
+    {
+      Header: "Unit",
+      accessor: "unit",
+      id: "unit",
+      width: "10%",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.unit_raw || "";
+        const b = rowB.original.unit_raw || "";
+        return a.localeCompare(b);
+      },
+    },
+    {
+      Header: "Region",
+      accessor: "region",
+      id: "region",
+      width: "12%",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.region_raw || "";
+        const b = rowB.original.region_raw || "";
+        return a.localeCompare(b);
+      },
+    },
+    {
+      Header: "Currency",
+      accessor: "currency",
+      id: "currency",
+      width: "8%",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.currency_raw || "";
+        const b = rowB.original.currency_raw || "";
+        return a.localeCompare(b);
+      },
+    },
+    {
+      Header: "Price",
+      accessor: "price",
+      id: "price",
+      width: "10%",
+      align: "right",
+      sortType: (rowA, rowB) => {
+        const a = rowA.original.price_raw || 0;
+        const b = rowB.original.price_raw || 0;
+        return a - b;
+      },
+    },
+    {
+      Header: "Default",
+      accessor: "is_default",
+      id: "is_default",
+      width: "8%",
+      align: "center",
+    },
+    {
+      Header: "Description",
+      accessor: "description",
+      id: "description",
+      width: "18%",
+    },
+    {
+      Header: "Actions",
+      accessor: "actions",
+      id: "actions",
+      width: "12%",
+      align: "center",
+      disableSortBy: true,
+    },
+  ], []);
+
+  // Get ordered rate plan columns
+  const orderedRatePlanColumns = useMemo(() => {
+    if (ratePlanColumnOrder.length === 0) return allRatePlanColumns;
+
+    const columnMap = new Map(allRatePlanColumns.map((col) => [col.id, col]));
+    const ordered = [];
+    const usedIds = new Set();
+
+    ratePlanColumnOrder.forEach((id) => {
+      if (columnMap.has(id)) {
+        ordered.push(columnMap.get(id));
+        usedIds.add(id);
+      }
+    });
+
+    allRatePlanColumns.forEach((col) => {
+      if (!usedIds.has(col.id)) ordered.push(col);
+    });
+
+    return ordered;
+  }, [allRatePlanColumns, ratePlanColumnOrder]);
+
+  // Visible rate plan columns
+  const ratePlanColumns = useMemo(() => {
+    return orderedRatePlanColumns.filter((col) => !ratePlanHiddenColumns.includes(col.id));
+  }, [orderedRatePlanColumns, ratePlanHiddenColumns]);
+
+  // Helper function to format rate plan price display based on meter type
+  const formatRatePlanPriceDisplay = (rp) => {
+    if (rp.price == null) return "-";
+    // Check if meter is percentage type by looking up in meters state
+    const meter = meters.find((m) => m.id === rp.meter_id);
+    const isPercentage = meter?.value_type?.name?.toLowerCase().includes("percent") || false;
+    if (isPercentage) {
+      // Convert decimal to percentage display (0.15 -> 15%)
+      const percentValue = (rp.price * 100).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+      return `${percentValue}%`;
+    }
+    return rp.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  // Build rate plan rows
+  const ratePlanRows = useMemo(() => {
+    return ratePlans.map((rp) => ({
+      id: rp.id,
+      product: (
+        <MDTypography variant="button" fontWeight="medium">
+          {rp.product?.name || "-"}
+        </MDTypography>
+      ),
+      product_raw: rp.product?.name || "",
+      meter: (
+        <MDTypography variant="caption" color="text">
+          {rp.meter?.name || "-"}
+        </MDTypography>
+      ),
+      meter_raw: rp.meter?.name || "",
+      unit: (
+        <MDTypography variant="caption" color="text">
+          {rp.unit ? `${rp.unit.name}${rp.unit.symbol ? ` (${rp.unit.symbol})` : ""}` : "-"}
+        </MDTypography>
+      ),
+      unit_raw: rp.unit?.name || "",
+      region: (
+        <Chip
+          label={rp.region?.name || "-"}
+          size="small"
+          color="secondary"
+          variant="outlined"
+          sx={{ fontSize: "0.7rem" }}
+        />
+      ),
+      region_raw: rp.region?.name || "",
+      currency: (
+        <Chip
+          label={rp.currency || "-"}
+          size="small"
+          color="info"
+          variant="outlined"
+          sx={{ fontSize: "0.7rem" }}
+        />
+      ),
+      currency_raw: rp.currency || "",
+      price: (
+        <MDTypography variant="button" fontWeight="medium" sx={{ textAlign: "right", display: "block" }}>
+          {formatRatePlanPriceDisplay(rp)}
+        </MDTypography>
+      ),
+      price_raw: rp.price || 0,
+      is_default: (
+        <Icon sx={{ color: rp.is_default ? "success.main" : "grey.400" }}>
+          {rp.is_default ? "check_circle" : "cancel"}
+        </Icon>
+      ),
+      description: (
+        <MDTypography
+          variant="caption"
+          color="text"
+          sx={{
+            display: "block",
+            maxWidth: 150,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+          title={rp.description || ""}
+        >
+          {rp.description || "-"}
+        </MDTypography>
+      ),
+      actions: (
+        <MDBox display="flex" justifyContent="center" gap={0.5}>
+          <Tooltip title="Edit" placement="top">
+            <IconButton
+              size="small"
+              onClick={() => handleEditRatePlan(rp)}
+              sx={{
+                color: "info.main",
+                "&:hover": { transform: "scale(1.2)", backgroundColor: "rgba(26, 115, 232, 0.1)" },
+              }}
+            >
+              <Icon fontSize="small">edit</Icon>
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Duplicate" placement="top">
+            <IconButton
+              size="small"
+              onClick={() => handleDuplicateRatePlan(rp)}
+              sx={{
+                color: "success.main",
+                "&:hover": { transform: "scale(1.2)", backgroundColor: "rgba(76, 175, 80, 0.1)" },
+              }}
+            >
+              <Icon fontSize="small">content_copy</Icon>
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Delete" placement="top">
+            <IconButton
+              size="small"
+              onClick={() => {
+                setDeletingRatePlan(rp);
+                setDeleteRatePlanDialogOpen(true);
+              }}
+              sx={{
+                color: "error.main",
+                "&:hover": { transform: "scale(1.2)", backgroundColor: "rgba(244, 67, 54, 0.1)" },
+              }}
+            >
+              <Icon fontSize="small">delete</Icon>
+            </IconButton>
+          </Tooltip>
+        </MDBox>
+      ),
+    }));
+  }, [ratePlans]);
+
   const validationErrors = getValidationErrors();
 
   // Property filter definitions
@@ -1642,51 +2267,179 @@ function TemplateProducts() {
                   {template.name}
                 </MDTypography>
                 <MDBox display="flex" alignItems="center" gap={1}>
-                  <Tooltip title="Show/Hide Columns">
-                    <IconButton
-                      size="small"
-                      onClick={handleColumnMenuOpen}
-                      sx={{ color: "white.main" }}
-                    >
-                      <Icon>view_column</Icon>
-                    </IconButton>
-                  </Tooltip>
-                  <MDButton variant="contained" color="white" size="small" onClick={handleCreateNew}>
-                    <Icon sx={{ mr: 1 }}>add</Icon>
-                    Add {template.name}
-                  </MDButton>
+                  {activeTab === 0 ? (
+                    <>
+                      <Tooltip title="Show/Hide Columns">
+                        <IconButton
+                          size="small"
+                          onClick={handleColumnMenuOpen}
+                          sx={{ color: "white.main" }}
+                        >
+                          <Icon>view_column</Icon>
+                        </IconButton>
+                      </Tooltip>
+                      <MDButton variant="contained" color="white" size="small" onClick={handleCreateNew}>
+                        <Icon sx={{ mr: 1 }}>add</Icon>
+                        Add {template.name}
+                      </MDButton>
+                    </>
+                  ) : (
+                    <>
+                      <Tooltip title="Show/Hide Columns">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => setRatePlanColumnMenuAnchor(e.currentTarget)}
+                          sx={{ color: "white.main" }}
+                        >
+                          <Icon>view_column</Icon>
+                        </IconButton>
+                      </Tooltip>
+                      <MDButton
+                        variant="contained"
+                        color="white"
+                        size="small"
+                        onClick={() => handleCreateRatePlan(null)}
+                      >
+                        <Icon sx={{ mr: 1 }}>add</Icon>
+                        Add Rate Plan
+                      </MDButton>
+                    </>
+                  )}
                 </MDBox>
               </MDBox>
-              <MDBox pt={3} px={2} pb={2}>
-                {loadingProducts ? (
-                  <MDBox display="flex" justifyContent="center" py={5}>
-                    <CircularProgress color="info" />
-                  </MDBox>
-                ) : products.length === 0 ? (
-                  <MDBox display="flex" flexDirection="column" alignItems="center" py={5}>
-                    <MDTypography variant="body2" color="text" mb={2}>
-                      No {template.name} products found.
-                    </MDTypography>
-                    <MDButton variant="outlined" color="info" onClick={handleCreateNew}>
-                      Create Your First {template.name}
-                    </MDButton>
-                  </MDBox>
-                ) : (
-                  <DataTable
-                    table={{ columns, rows }}
-                    isSorted={true}
-                    entriesPerPage={{ defaultValue: 10 }}
-                    showTotalEntries={true}
-                    noEndBorder
-                    canSearch={true}
-                    draggableColumns={true}
-                    onColumnOrderChange={handleColumnOrderChange}
-                    onResetColumnOrder={resetColumnOrder}
-                    currentPage={currentPage}
-                    onPageChange={setCurrentPage}
-                    tableId={template ? `products-${template.id}` : null}
-                    filterComponents={renderFilterComponents()}
+
+              {/* Tabs */}
+              <MDBox px={2} pt={2}>
+                <Tabs
+                  value={activeTab}
+                  onChange={(e, newValue) => setActiveTab(newValue)}
+                  textColor="primary"
+                  indicatorColor="primary"
+                  variant="standard"
+                  sx={{
+                    minHeight: 42,
+                    width: "fit-content",
+                    "& .MuiTabs-scroller": {
+                      overflow: "visible !important",
+                    },
+                    "& .MuiTabs-flexContainer": {
+                      gap: 1,
+                    },
+                    "& .MuiTabs-indicator": {
+                      height: 3,
+                      borderRadius: "3px 3px 0 0",
+                      backgroundColor: "info.main",
+                    },
+                    "& .MuiTab-root": {
+                      minHeight: 42,
+                      minWidth: "unset",
+                      maxWidth: "unset",
+                      flex: "0 0 auto",
+                      px: 2,
+                      py: 1,
+                      fontWeight: 500,
+                      fontSize: "0.875rem",
+                      textTransform: "none",
+                      borderRadius: "8px 8px 0 0",
+                      transition: "all 0.2s ease-in-out",
+                      "&:hover": {
+                        backgroundColor: "rgba(0, 0, 0, 0.04)",
+                      },
+                      "&.Mui-selected": {
+                        fontWeight: 600,
+                        color: "info.main",
+                      },
+                    },
+                  }}
+                >
+                  <Tab
+                    icon={<Icon fontSize="small">inventory</Icon>}
+                    iconPosition="start"
+                    label={`Products (${products.length})`}
                   />
+                  <Tab
+                    icon={<Icon fontSize="small">price_change</Icon>}
+                    iconPosition="start"
+                    label={`Rate Plans (${ratePlans.length})`}
+                  />
+                </Tabs>
+              </MDBox>
+
+              {/* Tab Content */}
+              <MDBox pt={2} px={2} pb={2}>
+                {/* Products Tab */}
+                {activeTab === 0 && (
+                  <>
+                    {loadingProducts ? (
+                      <MDBox display="flex" justifyContent="center" py={5}>
+                        <CircularProgress color="info" />
+                      </MDBox>
+                    ) : products.length === 0 ? (
+                      <MDBox display="flex" flexDirection="column" alignItems="center" py={5}>
+                        <MDTypography variant="body2" color="text" mb={2}>
+                          No {template.name} products found.
+                        </MDTypography>
+                        <MDButton variant="outlined" color="info" onClick={handleCreateNew}>
+                          Create Your First {template.name}
+                        </MDButton>
+                      </MDBox>
+                    ) : (
+                      <DataTable
+                        table={{ columns, rows }}
+                        isSorted={true}
+                        entriesPerPage={{ defaultValue: 10 }}
+                        showTotalEntries={true}
+                        noEndBorder
+                        canSearch={true}
+                        draggableColumns={true}
+                        onColumnOrderChange={handleColumnOrderChange}
+                        onResetColumnOrder={resetColumnOrder}
+                        currentPage={currentPage}
+                        onPageChange={setCurrentPage}
+                        tableId={template ? `products-${template.id}` : null}
+                        filterComponents={renderFilterComponents()}
+                      />
+                    )}
+                  </>
+                )}
+
+                {/* Rate Plans Tab */}
+                {activeTab === 1 && (
+                  <>
+                    {loadingRatePlans ? (
+                      <MDBox display="flex" justifyContent="center" py={5}>
+                        <CircularProgress color="info" />
+                      </MDBox>
+                    ) : ratePlans.length === 0 ? (
+                      <MDBox display="flex" flexDirection="column" alignItems="center" py={5}>
+                        <MDTypography variant="body2" color="text" mb={2}>
+                          No rate plans found for {template.name} products.
+                        </MDTypography>
+                        <MDButton
+                          variant="outlined"
+                          color="info"
+                          onClick={() => handleCreateRatePlan(null)}
+                        >
+                          Create Your First Rate Plan
+                        </MDButton>
+                      </MDBox>
+                    ) : (
+                      <DataTable
+                        table={{ columns: ratePlanColumns, rows: ratePlanRows }}
+                        isSorted={true}
+                        entriesPerPage={{ defaultValue: 10 }}
+                        showTotalEntries={true}
+                        noEndBorder
+                        canSearch={true}
+                        draggableColumns={true}
+                        onColumnOrderChange={handleRatePlanColumnOrderChange}
+                        onResetColumnOrder={resetRatePlanColumnOrder}
+                        currentPage={ratePlanCurrentPage}
+                        onPageChange={setRatePlanCurrentPage}
+                        tableId={template ? `rate-plans-${template.id}` : null}
+                      />
+                    )}
+                  </>
                 )}
               </MDBox>
             </Card>
@@ -1977,6 +2730,272 @@ function TemplateProducts() {
             </MenuItem>
           ))}
       </Menu>
+
+      {/* Rate Plan Column Visibility Menu */}
+      <Menu
+        anchorEl={ratePlanColumnMenuAnchor}
+        open={Boolean(ratePlanColumnMenuAnchor)}
+        onClose={() => setRatePlanColumnMenuAnchor(null)}
+        PaperProps={{
+          sx: {
+            maxHeight: 400,
+            minWidth: 220,
+          },
+        }}
+      >
+        <MDBox px={2} py={1} display="flex" justifyContent="space-between" alignItems="center">
+          <MDTypography variant="caption" fontWeight="bold" color="text">
+            Show/Hide Columns
+          </MDTypography>
+          {ratePlanHiddenColumns.length > 0 && (
+            <Button size="small" onClick={showAllRatePlanColumns} sx={{ fontSize: "0.7rem", p: 0 }}>
+              Show All
+            </Button>
+          )}
+        </MDBox>
+        {allRatePlanColumns
+          .filter((col) => col.id !== "actions")
+          .map((col) => (
+            <MenuItem
+              key={col.id}
+              onClick={() => toggleRatePlanColumnVisibility(col.id)}
+              dense
+              sx={{ py: 0.5 }}
+            >
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <Checkbox
+                  checked={!ratePlanHiddenColumns.includes(col.id)}
+                  size="small"
+                  sx={{ p: 0 }}
+                />
+              </ListItemIcon>
+              <ListItemText
+                primary={col.Header}
+                primaryTypographyProps={{ variant: "body2", fontSize: "0.875rem" }}
+              />
+            </MenuItem>
+          ))}
+      </Menu>
+
+      {/* Add/Edit Rate Plan Dialog */}
+      <Dialog
+        open={ratePlanDialogOpen}
+        onClose={handleRatePlanFormClose}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          {editingRatePlan ? "Edit Rate Plan" : "Add Rate Plan"}
+        </DialogTitle>
+        <DialogContent>
+          <MDBox pt={2}>
+            {/* Product Selection - Searchable */}
+            <Autocomplete
+              options={products}
+              getOptionLabel={(option) => option.name || ""}
+              value={selectedProductForRatePlan}
+              onChange={(event, newValue) => {
+                setSelectedProductForRatePlan(newValue);
+              }}
+              isOptionEqualToValue={(option, value) => option?.id === value?.id}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Product *"
+                  margin="normal"
+                  placeholder="Search products..."
+                />
+              )}
+              renderOption={(props, option) => (
+                <Box component="li" {...props} key={option.id}>
+                  <MDBox>
+                    <MDTypography variant="button" fontWeight="medium">
+                      {option.name}
+                    </MDTypography>
+                    {(option.scope?.name || option.region?.name) && (
+                      <MDBox display="flex" gap={0.5} mt={0.5}>
+                        {option.scope?.name && (
+                          <Chip label={option.scope.name} size="small" sx={{ fontSize: "0.65rem", height: 18 }} />
+                        )}
+                        {option.region?.name && (
+                          <Chip label={option.region.name} size="small" color="secondary" variant="outlined" sx={{ fontSize: "0.65rem", height: 18 }} />
+                        )}
+                      </MDBox>
+                    )}
+                  </MDBox>
+                </Box>
+              )}
+              sx={{ mt: 1 }}
+            />
+
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>Meter</InputLabel>
+                  <Select
+                    value={ratePlanFormData.meter_id || ""}
+                    onChange={(e) => handleRatePlanFormChange("meter_id", e.target.value)}
+                    label="Meter"
+                    sx={{ minHeight: 44 }}
+                  >
+                    <MenuItem value="">
+                      <em>None</em>
+                    </MenuItem>
+                    {meters.map((m) => (
+                      <MenuItem key={m.id} value={m.id}>
+                        {m.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={6}>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>Unit</InputLabel>
+                  <Select
+                    value={ratePlanFormData.unit_id || ""}
+                    onChange={(e) => handleRatePlanFormChange("unit_id", e.target.value)}
+                    label="Unit"
+                    sx={{ minHeight: 44 }}
+                  >
+                    <MenuItem value="">
+                      <em>None</em>
+                    </MenuItem>
+                    {units.map((u) => (
+                      <MenuItem key={u.id} value={u.id}>
+                        {u.name}
+                        {u.symbol ? ` (${u.symbol})` : ""}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>Pricing Attribute</InputLabel>
+                  <Select
+                    value={ratePlanFormData.pricing_attribute_id || ""}
+                    onChange={(e) => handleRatePlanFormChange("pricing_attribute_id", e.target.value)}
+                    label="Pricing Attribute"
+                    sx={{ minHeight: 44 }}
+                  >
+                    <MenuItem value="">
+                      <em>None</em>
+                    </MenuItem>
+                    {pricingAttributes.map((pa) => (
+                      <MenuItem key={pa.id} value={pa.id}>
+                        {pa.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={6}>
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>Region</InputLabel>
+                  <Select
+                    value={ratePlanFormData.region_id || ""}
+                    onChange={(e) => handleRatePlanFormChange("region_id", e.target.value)}
+                    label="Region"
+                    sx={{ minHeight: 44 }}
+                  >
+                    <MenuItem value="">
+                      <em>None</em>
+                    </MenuItem>
+                    {regions.map((r) => (
+                      <MenuItem key={r.id} value={r.id}>
+                        {r.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+
+            <Grid container spacing={2}>
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  label="Currency"
+                  value={ratePlanFormData.currency || ""}
+                  onChange={(e) => handleRatePlanFormChange("currency", e.target.value)}
+                  margin="normal"
+                  placeholder="e.g., USD, EUR, GBP"
+                />
+              </Grid>
+              <Grid item xs={6}>
+                <TextField
+                  fullWidth
+                  label={isPercentageMeter(ratePlanFormData.meter_id) ? "Percentage" : "Price"}
+                  type="number"
+                  value={ratePlanFormData.price || ""}
+                  onChange={(e) => handleRatePlanFormChange("price", e.target.value)}
+                  margin="normal"
+                  placeholder={isPercentageMeter(ratePlanFormData.meter_id) ? "e.g., 10 (for 10%)" : "e.g., 10.00"}
+                  inputProps={{
+                    step: isPercentageMeter(ratePlanFormData.meter_id) ? "0.1" : "0.01",
+                    min: "0",
+                    max: isPercentageMeter(ratePlanFormData.meter_id) ? "100" : undefined
+                  }}
+                  helperText={isPercentageMeter(ratePlanFormData.meter_id) ? "Enter percentage value (e.g., 10 for 10%)" : ""}
+                />
+              </Grid>
+            </Grid>
+
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={ratePlanFormData.is_default || false}
+                      onChange={(e) => handleRatePlanFormChange("is_default", e.target.checked)}
+                    />
+                  }
+                  label="Default Rate Plan"
+                  sx={{ mt: 1 }}
+                />
+              </Grid>
+            </Grid>
+
+            <TextField
+              fullWidth
+              label="Description"
+              value={ratePlanFormData.description || ""}
+              onChange={(e) => handleRatePlanFormChange("description", e.target.value)}
+              margin="normal"
+              multiline
+              rows={3}
+            />
+          </MDBox>
+        </DialogContent>
+        <DialogActions>
+          <MDButton onClick={handleRatePlanFormClose} color="secondary" disabled={savingRatePlan}>
+            Cancel
+          </MDButton>
+          <MDButton onClick={handleSaveRatePlan} color="info" disabled={savingRatePlan}>
+            {savingRatePlan ? "Saving..." : editingRatePlan ? "Update" : "Add"}
+          </MDButton>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Rate Plan Confirmation Dialog */}
+      <Dialog open={deleteRatePlanDialogOpen} onClose={() => setDeleteRatePlanDialogOpen(false)}>
+        <DialogTitle>Delete Rate Plan</DialogTitle>
+        <DialogContent>
+          <MDTypography variant="body2">
+            Are you sure you want to delete this rate plan? This action cannot be undone.
+          </MDTypography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteRatePlanDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleDeleteRatePlan} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </DashboardLayout>
   );
 }
