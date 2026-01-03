@@ -54,7 +54,7 @@ import Footer from "examples/Footer";
 import { supabase } from "supabaseClient";
 
 // Sortable Item Component for drag and drop
-function SortableAttributeItem({ attr, index, totalCount, onRequiredToggle, onRemove, renderValueInput }) {
+function SortableAttributeItem({ attr, index, totalCount, onRequiredToggle, onOverviewDisplayToggle, onRemove, renderValueInput }) {
   const {
     attributes,
     listeners,
@@ -110,13 +110,29 @@ function SortableAttributeItem({ attr, index, totalCount, onRequiredToggle, onRe
         </MDBox>
 
         {/* Required toggle */}
-        <MDBox width={100} display="flex" justifyContent="center">
+        <MDBox width={80} display="flex" flexDirection="column" alignItems="center">
           <Switch
             checked={attr.is_required}
             onChange={() => onRequiredToggle(index)}
             color="info"
             size="small"
           />
+          <MDTypography variant="caption" color="text" sx={{ fontSize: "0.6rem" }}>
+            Required
+          </MDTypography>
+        </MDBox>
+
+        {/* Overview display toggle */}
+        <MDBox width={80} display="flex" flexDirection="column" alignItems="center">
+          <Switch
+            checked={attr.is_overview_display || false}
+            onChange={() => onOverviewDisplayToggle(index)}
+            color="success"
+            size="small"
+          />
+          <MDTypography variant="caption" color="text" sx={{ fontSize: "0.6rem" }}>
+            Overview
+          </MDTypography>
         </MDBox>
 
         {/* Value input */}
@@ -316,6 +332,7 @@ function ProductAttributes() {
         data_type: pa.attribute?.data_type,
         unit: pa.attribute?.unit,
         is_required: pa.is_required,
+        is_overview_display: pa.is_overview_display || false,
         attribute_value: getTypedValue(pa),
         sort_order: pa.sort_order,
         tags: pa.attribute?.tags,
@@ -725,6 +742,7 @@ function ProductAttributes() {
         data_type: attribute.data_type,
         unit: attribute.unit,
         is_required: false, // Default to false, user can toggle in the linked attributes panel
+        is_overview_display: false, // Default to false, user can toggle in the linked attributes panel
         attribute_value: attribute.default_value || "",
         sort_order: productAttributes.length + 1,
         tags: attribute.tags,
@@ -739,6 +757,14 @@ function ProductAttributes() {
   const handleRequiredToggle = (index) => {
     setProductAttributes((prev) =>
       prev.map((pa, idx) => (idx === index ? { ...pa, is_required: !pa.is_required } : pa))
+    );
+    setHasChanges(true);
+  };
+
+  // Handle overview display toggle - use index for precise targeting
+  const handleOverviewDisplayToggle = (index) => {
+    setProductAttributes((prev) =>
+      prev.map((pa, idx) => (idx === index ? { ...pa, is_overview_display: !pa.is_overview_display } : pa))
     );
     setHasChanges(true);
   };
@@ -1014,6 +1040,7 @@ function ProductAttributes() {
           product_template_id: selectedProduct.id,
           attribute_definition_id: pa.attribute_id,
           is_required: pa.is_required ?? false,
+          is_overview_display: pa.is_overview_display ?? false,
           sort_order: pa.sort_order?.toString() || "0",
           is_active: true,
           ...getTypedValueColumns(pa),
@@ -1032,6 +1059,7 @@ function ProductAttributes() {
             .from("product_template_attributes")
             .update({
               is_required: pa.is_required ?? false,
+              is_overview_display: pa.is_overview_display ?? false,
               sort_order: pa.sort_order?.toString() || "0",
               ...getTypedValueColumns(pa),
             })
@@ -1302,6 +1330,7 @@ function ProductAttributes() {
                                 index={index}
                                 totalCount={productAttributes.length}
                                 onRequiredToggle={handleRequiredToggle}
+                                onOverviewDisplayToggle={handleOverviewDisplayToggle}
                                 onRemove={handleRemoveAttribute}
                                 renderValueInput={renderValueInput}
                               />
