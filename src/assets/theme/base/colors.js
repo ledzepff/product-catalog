@@ -21,12 +21,12 @@ Coded by www.creative-tim.com
 
 const colors = {
   background: {
-    default: "#f0f2f5",
+    default: "#fafbfc",
   },
 
   text: {
-    main: "#7b809a",
-    focus: "#7b809a",
+    main: "#4a5568",
+    focus: "#2d3748",
   },
 
   transparent: {
@@ -39,49 +39,49 @@ const colors = {
   },
 
   black: {
-    light: "#000000",
-    main: "#000000",
-    focus: "#000000",
+    light: "#1a202c",
+    main: "#0d1117",
+    focus: "#0d1117",
   },
 
   primary: {
-    main: "#e91e63",
-    focus: "#e91e63",
+    main: "#2563eb",
+    focus: "#1d4ed8",
   },
 
   secondary: {
-    main: "#7b809a",
-    focus: "#8f93a9",
+    main: "#64748b",
+    focus: "#475569",
   },
 
   info: {
-    main: "#1A73E8",
-    focus: "#1662C4",
+    main: "#0891b2",
+    focus: "#0e7490",
   },
 
   success: {
-    main: "#4CAF50",
-    focus: "#67bb6a",
+    main: "#16a34a",
+    focus: "#15803d",
   },
 
   warning: {
-    main: "#fb8c00",
-    focus: "#fc9d26",
+    main: "#d97706",
+    focus: "#b45309",
   },
 
   error: {
-    main: "#F44335",
-    focus: "#f65f53",
+    main: "#dc2626",
+    focus: "#b91c1c",
   },
 
   light: {
-    main: "#f0f2f5",
-    focus: "#f0f2f5",
+    main: "#f1f5f9",
+    focus: "#e2e8f0",
   },
 
   dark: {
-    main: "#344767",
-    focus: "#2c3c58",
+    main: "#1e293b",
+    focus: "#0f172a",
   },
 
   grey: {
@@ -98,43 +98,43 @@ const colors = {
 
   gradients: {
     primary: {
-      main: "#EC407A",
-      state: "#D81B60",
+      main: "#2563eb",
+      state: "#2563eb",
     },
 
     secondary: {
-      main: "#747b8a",
-      state: "#495361",
+      main: "#64748b",
+      state: "#64748b",
     },
 
     info: {
-      main: "#49a3f1",
-      state: "#1A73E8",
+      main: "#0891b2",
+      state: "#0891b2",
     },
 
     success: {
-      main: "#66BB6A",
-      state: "#43A047",
+      main: "#16a34a",
+      state: "#16a34a",
     },
 
     warning: {
-      main: "#FFA726",
-      state: "#FB8C00",
+      main: "#d97706",
+      state: "#d97706",
     },
 
     error: {
-      main: "#EF5350",
-      state: "#E53935",
+      main: "#dc2626",
+      state: "#dc2626",
     },
 
     light: {
-      main: "#EBEFF4",
-      state: "#CED4DA",
+      main: "#f1f5f9",
+      state: "#f1f5f9",
     },
 
     dark: {
-      main: "#42424a",
-      state: "#191919",
+      main: "#1e293b",
+      state: "#1e293b",
     },
   },
 
@@ -243,14 +243,14 @@ const colors = {
   },
 
   coloredShadows: {
-    primary: "#e91e62",
-    secondary: "#110e0e",
-    info: "#00bbd4",
-    success: "#4caf4f",
-    warning: "#ff9900",
-    error: "#f44336",
-    light: "#adb5bd",
-    dark: "#404040",
+    primary: "transparent",
+    secondary: "transparent",
+    info: "transparent",
+    success: "transparent",
+    warning: "transparent",
+    error: "transparent",
+    light: "transparent",
+    dark: "transparent",
   },
 
   inputBorderColor: "#d2d6da",

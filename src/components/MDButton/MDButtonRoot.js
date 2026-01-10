@@ -35,26 +35,6 @@ export default styled(Button)(({ theme, ownerState }) => {
     // backgroundColor value when button is focused
     const focusedBackgroundValue = palette[color] ? palette[color].focus : white.focus;
 
-    // boxShadow value
-    const boxShadowValue = colored[color]
-      ? `${boxShadow([0, 3], [3, 0], palette[color].main, 0.15)}, ${boxShadow(
-          [0, 3],
-          [1, -2],
-          palette[color].main,
-          0.2
-        )}, ${boxShadow([0, 1], [5, 0], palette[color].main, 0.15)}`
-      : "none";
-
-    // boxShadow value when button is hovered
-    const hoveredBoxShadowValue = colored[color]
-      ? `${boxShadow([0, 14], [26, -12], palette[color].main, 0.4)}, ${boxShadow(
-          [0, 4],
-          [23, 0],
-          palette[color].main,
-          0.15
-        )}, ${boxShadow([0, 8], [10, -5], palette[color].main, 0.2)}`
-      : "none";
-
     // color value
     let colorValue = white.main;
 
@@ -76,23 +56,22 @@ export default styled(Button)(({ theme, ownerState }) => {
     return {
       background: backgroundValue,
       color: colorValue,
-      boxShadow: boxShadowValue,
+      boxShadow: "none",
 
       "&:hover": {
-        backgroundColor: backgroundValue,
-        boxShadow: hoveredBoxShadowValue,
+        backgroundColor: focusedBackgroundValue,
+        boxShadow: "none",
       },
 
       "&:focus:not(:hover)": {
         backgroundColor: focusedBackgroundValue,
-        boxShadow: palette[color]
-          ? boxShadow([0, 0], [0, 3.2], palette[color].main, 0.5)
-          : boxShadow([0, 0], [0, 3.2], white.main, 0.5),
+        boxShadow: "none",
       },
 
       "&:disabled": {
         backgroundColor: backgroundValue,
         color: focusedColorValue,
+        opacity: 0.6,
       },
     };
   };
@@ -100,15 +79,10 @@ export default styled(Button)(({ theme, ownerState }) => {
   // styles for the button with variant="outlined"
   const outliedStyles = () => {
     // background color value
-    const backgroundValue = color === "white" ? rgba(white.main, 0.1) : transparent.main;
+    const backgroundValue = transparent.main;
 
     // color value
     const colorValue = palette[color] ? palette[color].main : white.main;
-
-    // boxShadow value
-    const boxShadowValue = palette[color]
-      ? boxShadow([0, 0], [0, 3.2], palette[color].main, 0.5)
-      : boxShadow([0, 0], [0, 3.2], white.main, 0.5);
 
     // border color value
     let borderColorValue = palette[color] ? palette[color].main : rgba(white.main, 0.75);
@@ -123,55 +97,33 @@ export default styled(Button)(({ theme, ownerState }) => {
       borderColor: borderColorValue,
 
       "&:hover": {
-        background: transparent.main,
+        background: rgba(colorValue, 0.08),
         borderColor: colorValue,
       },
 
       "&:focus:not(:hover)": {
-        background: transparent.main,
-        boxShadow: boxShadowValue,
+        background: rgba(colorValue, 0.08),
+        boxShadow: "none",
       },
 
       "&:active:not(:hover)": {
-        backgroundColor: colorValue,
-        color: white.main,
-        opacity: 0.85,
+        backgroundColor: rgba(colorValue, 0.12),
+        color: colorValue,
       },
 
       "&:disabled": {
         color: colorValue,
         borderColor: colorValue,
+        opacity: 0.6,
       },
     };
   };
 
-  // styles for the button with variant="gradient"
+  // styles for the button with variant="gradient" - now flat, same as contained
   const gradientStyles = () => {
-    // background value
-    const backgroundValue =
-      color === "white" || !gradients[color]
-        ? white.main
-        : linearGradient(gradients[color].main, gradients[color].state);
-
-    // boxShadow value
-    const boxShadowValue = colored[color]
-      ? `${boxShadow([0, 3], [3, 0], palette[color].main, 0.15)}, ${boxShadow(
-          [0, 3],
-          [1, -2],
-          palette[color].main,
-          0.2
-        )}, ${boxShadow([0, 1], [5, 0], palette[color].main, 0.15)}`
-      : "none";
-
-    // boxShadow value when button is hovered
-    const hoveredBoxShadowValue = colored[color]
-      ? `${boxShadow([0, 14], [26, -12], palette[color].main, 0.4)}, ${boxShadow(
-          [0, 4],
-          [23, 0],
-          palette[color].main,
-          0.15
-        )}, ${boxShadow([0, 8], [10, -5], palette[color].main, 0.2)}`
-      : "none";
+    // Use solid color instead of gradient
+    const backgroundValue = palette[color] ? palette[color].main : white.main;
+    const focusedBackgroundValue = palette[color] ? palette[color].focus : white.focus;
 
     // color value
     let colorValue = white.main;
@@ -179,25 +131,28 @@ export default styled(Button)(({ theme, ownerState }) => {
     if (color === "white") {
       colorValue = text.main;
     } else if (color === "light") {
-      colorValue = gradients.dark.state;
+      colorValue = text.main;
     }
 
     return {
       background: backgroundValue,
       color: colorValue,
-      boxShadow: boxShadowValue,
+      boxShadow: "none",
 
       "&:hover": {
-        boxShadow: hoveredBoxShadowValue,
+        backgroundColor: focusedBackgroundValue,
+        boxShadow: "none",
       },
 
       "&:focus:not(:hover)": {
-        boxShadow: boxShadowValue,
+        backgroundColor: focusedBackgroundValue,
+        boxShadow: "none",
       },
 
       "&:disabled": {
         background: backgroundValue,
         color: colorValue,
+        opacity: 0.6,
       },
     };
   };

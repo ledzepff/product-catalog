@@ -22,12 +22,13 @@ function navbar(theme, ownerState) {
   const { borderRadius } = borders;
 
   return {
-    boxShadow: transparentNavbar || absolute ? "none" : navbarBoxShadow,
-    backdropFilter: transparentNavbar || absolute ? "none" : `saturate(200%) blur(${pxToRem(30)})`,
+    boxShadow: "none",
+    backdropFilter: "none",
     backgroundColor:
       transparentNavbar || absolute
         ? `${transparent.main} !important`
-        : rgba(darkMode ? background.default : white.main, 0.8),
+        : darkMode ? background.default : white.main,
+    borderBottom: transparentNavbar || absolute ? "none" : "1px solid #e2e8f0",
 
     color: () => {
       let color;

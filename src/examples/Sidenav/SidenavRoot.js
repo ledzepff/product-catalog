@@ -26,9 +26,8 @@ export default styled(Drawer)(({ theme, ownerState }) => {
   const { xxl } = boxShadows;
   const { pxToRem, linearGradient } = functions;
 
-  let backgroundValue = darkMode
-    ? background.sidenav
-    : linearGradient(gradients.dark.main, gradients.dark.state);
+  // Use flat solid color instead of gradient
+  let backgroundValue = darkMode ? background.sidenav : palette.dark.main;
 
   if (transparentSidenav) {
     backgroundValue = transparent.main;
@@ -83,8 +82,9 @@ export default styled(Drawer)(({ theme, ownerState }) => {
 
   return {
     "& .MuiDrawer-paper": {
-      boxShadow: xxl,
+      boxShadow: "none",
       border: "none",
+      borderRight: whiteSidenav ? "1px solid #e2e8f0" : "none",
 
       ...(miniSidenav ? drawerCloseStyles() : drawerOpenStyles()),
     },
