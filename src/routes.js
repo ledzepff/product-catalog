@@ -59,6 +59,8 @@ import {
   PricingTypes,
   PricingAttributes,
   RatePlans,
+  Bundles,
+  ConsoleProducts,
 } from "layouts/pricing";
 
 // @mui icons
@@ -180,6 +182,20 @@ const routes = [
         route: "/pricing/rate-plans",
         icon: <Icon fontSize="small">price_change</Icon>,
         component: <RatePlans />,
+      },
+      {
+        name: "Bundles",
+        key: "bundles",
+        route: "/pricing/bundles",
+        icon: <Icon fontSize="small">inventory_2</Icon>,
+        component: <Bundles />,
+      },
+      {
+        name: "Console Products",
+        key: "console-products",
+        route: "/pricing/console-products",
+        icon: <Icon fontSize="small">cloud</Icon>,
+        component: <ConsoleProducts />,
       },
     ],
   },

@@ -5,3 +5,5 @@ export { default as Meters } from "./Meters";
 export { default as PricingTypes } from "./PricingTypes";
 export { default as PricingAttributes } from "./PricingAttributes";
 export { default as RatePlans } from "./RatePlans";
+export { default as Bundles } from "./Bundles";
+export { default as ConsoleProducts } from "./ConsoleProducts";
