@@ -22,6 +22,8 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { ThemeProvider } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import Icon from "@mui/material/Icon";
+import CircularProgress from "@mui/material/CircularProgress";
+import Box from "@mui/material/Box";
 
 // Material Dashboard 2 React example components
 import Sidenav from "examples/Sidenav";
@@ -45,6 +47,10 @@ import routes from "routes";
 // Material Dashboard 2 React contexts
 import { useMaterialUIController, setMiniSidenav } from "context";
 
+// Auth context and components
+import { useAuth } from "context/AuthContext";
+import ProtectedRoute from "components/ProtectedRoute";
+
 // Images
 import brandWhite from "assets/images/pt-logo.png";
 import brandDark from "assets/images/pt-logo.png";
@@ -54,6 +60,9 @@ import { supabase } from "supabaseClient";
 
 // Dynamic template component
 import TemplateProducts from "layouts/products/TemplateProducts";
+
+// Unauthorized page
+import Unauthorized from "layouts/authentication/unauthorized";
 
 // Icon mapping for product templates based on name keywords
 const getTemplateIcon = (templateName) => {
@@ -163,10 +172,14 @@ export default function App() {
     transparentSidenav,
     whiteSidenav,
     darkMode,
+    sidenavPinned,
   } = controller;
   const [onMouseEnter, setOnMouseEnter] = useState(false);
   const [rtlCache, setRtlCache] = useState(null);
   const { pathname } = useLocation();
+
+  // Auth state
+  const { loading: authLoading, isAuthenticated } = useAuth();
 
   // Dynamic templates state
   const [productTemplates, setProductTemplates] = useState([]);
@@ -279,17 +292,17 @@ export default function App() {
     });
   }, [productTemplates, templateGroups]);
 
-  // Open sidenav when mouse enter on mini sidenav
+  // Open sidenav when mouse enter on mini sidenav (only if not pinned)
   const handleOnMouseEnter = () => {
-    if (miniSidenav && !onMouseEnter) {
+    if (!sidenavPinned && miniSidenav && !onMouseEnter) {
       setMiniSidenav(dispatch, false);
       setOnMouseEnter(true);
     }
   };
 
-  // Close sidenav when mouse leave mini sidenav
+  // Close sidenav when mouse leave mini sidenav (only if not pinned)
   const handleOnMouseLeave = () => {
-    if (onMouseEnter) {
+    if (!sidenavPinned && onMouseEnter) {
       setMiniSidenav(dispatch, true);
       setOnMouseEnter(false);
     }
@@ -306,6 +319,12 @@ export default function App() {
     document.scrollingElement.scrollTop = 0;
   }, [pathname]);
 
+  // Check if route is a public route (no auth required)
+  const isPublicRoute = (route) => {
+    const publicPaths = ["/authentication/sign-in", "/authentication/forgot-password"];
+    return publicPaths.includes(route.route);
+  };
+
   const getRoutes = (allRoutes) =>
     allRoutes.map((route) => {
       if (route.collapse) {
@@ -314,7 +333,27 @@ export default function App() {
 
       // Only create route if it has both a path and a component
       if (route.route && route.component) {
-        return <Route exact path={route.route} element={route.component} key={route.key} />;
+        // Public routes don't need protection
+        if (isPublicRoute(route)) {
+          return <Route exact path={route.route} element={route.component} key={route.key} />;
+        }
+
+        // Protected routes - wrap with ProtectedRoute
+        // All authenticated users with any PMP role can access
+        return (
+          <Route
+            exact
+            path={route.route}
+            element={
+              <ProtectedRoute
+                requiredRoles={["platform_admin", "product_editor", "products_viewer"]}
+              >
+                {route.component}
+              </ProtectedRoute>
+            }
+            key={route.key}
+          />
+        );
       }
 
       return null;
@@ -324,20 +363,37 @@ export default function App() {
   const getDynamicTemplateRoute = () => (
     <Route
       path="/products/template/:templateName"
-      element={<TemplateProducts />}
+      element={
+        <ProtectedRoute requiredRoles={["platform_admin", "product_editor", "products_viewer"]}>
+          <TemplateProducts />
+        </ProtectedRoute>
+      }
       key="template-products"
     />
   );
 
-  if (loadingTemplates) {
-    return null; // Or a loading spinner
+  // Loading state - show spinner while auth is loading
+  if (authLoading || loadingTemplates) {
+    return (
+      <ThemeProvider theme={darkMode ? themeDark : theme}>
+        <CssBaseline />
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          minHeight="100vh"
+        >
+          <CircularProgress color="info" size={48} />
+        </Box>
+      </ThemeProvider>
+    );
   }
 
   return direction === "rtl" ? (
     <CacheProvider value={rtlCache}>
       <ThemeProvider theme={darkMode ? themeDarkRTL : themeRTL}>
         <CssBaseline />
-        {layout === "dashboard" && (
+        {layout === "dashboard" && isAuthenticated && (
           <>
             <Sidenav
               color={sidenavColor}
@@ -352,6 +408,7 @@ export default function App() {
         <Routes>
           {getRoutes(dynamicRoutes)}
           {getDynamicTemplateRoute()}
+          <Route path="/unauthorized" element={<Unauthorized />} />
           <Route path="*" element={<Navigate to="/dashboard" />} />
         </Routes>
       </ThemeProvider>
@@ -359,7 +416,7 @@ export default function App() {
   ) : (
     <ThemeProvider theme={darkMode ? themeDark : theme}>
       <CssBaseline />
-      {layout === "dashboard" && (
+      {layout === "dashboard" && isAuthenticated && (
         <>
           <Sidenav
             color={sidenavColor}
@@ -374,6 +431,7 @@ export default function App() {
       <Routes>
         {getRoutes(dynamicRoutes)}
         {getDynamicTemplateRoute()}
+        <Route path="/unauthorized" element={<Unauthorized />} />
         <Route path="*" element={<Navigate to="/dashboard" />} />
       </Routes>
     </ThemeProvider>

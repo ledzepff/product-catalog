@@ -7,7 +7,21 @@
       "Bash(findstr:*)",
       "Bash(dir:*)",
       "Bash(timeout 30 npm start:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(mkdir:*)",
+      "Bash(curl:*)",
+      "Bash(npm start)",
+      "Bash(taskkill:*)",
+      "Bash(taskkill /PID 476 /F)",
+      "Bash(tasklist:*)",
+      "Bash(netstat:*)",
+      "Bash(npm install:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(git checkout:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(git -c http.sslVerify=false push gitlab main)",
+      "Bash(PORT=3000 npm start)",
+      "Bash(node scripts/fetch-schema.js:*)"
     ],
     "deny": [],
     "ask": []

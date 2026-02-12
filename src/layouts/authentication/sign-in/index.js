@@ -1,33 +1,21 @@
 /**
-=========================================================
-* Material Dashboard 2 React - v2.2.0
-=========================================================
-
-* Product Page: https://www.creative-tim.com/product/material-dashboard-react
-* Copyright 2023 Creative Tim (https://www.creative-tim.com)
-
-Coded by www.creative-tim.com
-
- =========================================================
-
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-*/
+ * Sign In Page - PMP Authentication
+ *
+ * Features:
+ * - Email/password authentication via Supabase
+ * - No sign-up link (invitation-only)
+ * - Forgot password functionality
+ * - Generic error messages for security
+ */
 
 import { useState } from "react";
-
-// react-router-dom components
-import { Link } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 
 // @mui material components
 import Card from "@mui/material/Card";
 import Switch from "@mui/material/Switch";
-import Grid from "@mui/material/Grid";
-import MuiLink from "@mui/material/Link";
-
-// @mui icons
-import FacebookIcon from "@mui/icons-material/Facebook";
-import GitHubIcon from "@mui/icons-material/GitHub";
-import GoogleIcon from "@mui/icons-material/Google";
+import Alert from "@mui/material/Alert";
+import CircularProgress from "@mui/material/CircularProgress";
 
 // Material Dashboard 2 React components
 import MDBox from "components/MDBox";
@@ -38,16 +26,57 @@ import MDButton from "components/MDButton";
 // Authentication layout components
 import BasicLayout from "layouts/authentication/components/BasicLayout";
 
-// Images
-import bgImage from "assets/images/bg-sign-in-basic.jpeg";
+// Auth context
+import { useAuth } from "context/AuthContext";
 
-function Basic() {
+function SignIn() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { signIn, isAuthenticated } = useAuth();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [emailTouched, setEmailTouched] = useState(false);
 
-  const handleSetRememberMe = () => setRememberMe(!rememberMe);
+  // Email validation regex
+  const isValidEmail = (email) => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
+  };
+
+  const emailError = emailTouched && email && !isValidEmail(email);
+  const isFormValid = isValidEmail(email) && password.length > 0;
+
+  // Get the redirect path from location state, or default to dashboard
+  const from = location.state?.from?.pathname || "/dashboard";
+
+  // If already authenticated, redirect
+  if (isAuthenticated) {
+    navigate(from, { replace: true });
+    return null;
+  }
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      await signIn(email, password);
+      // Redirect to the page they tried to visit or dashboard
+      navigate(from, { replace: true });
+    } catch (err) {
+      setError(err.message || "Invalid email or password");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <BasicLayout image={bgImage}>
+    <BasicLayout>
       <Card>
         <MDBox
           variant="gradient"
@@ -63,61 +92,84 @@ function Basic() {
           <MDTypography variant="h4" fontWeight="medium" color="white" mt={1}>
             Sign in
           </MDTypography>
-          <Grid container spacing={3} justifyContent="center" sx={{ mt: 1, mb: 2 }}>
-            <Grid item xs={2}>
-              <MDTypography component={MuiLink} href="#" variant="body1" color="white">
-                <FacebookIcon color="inherit" />
-              </MDTypography>
-            </Grid>
-            <Grid item xs={2}>
-              <MDTypography component={MuiLink} href="#" variant="body1" color="white">
-                <GitHubIcon color="inherit" />
-              </MDTypography>
-            </Grid>
-            <Grid item xs={2}>
-              <MDTypography component={MuiLink} href="#" variant="body1" color="white">
-                <GoogleIcon color="inherit" />
-              </MDTypography>
-            </Grid>
-          </Grid>
+          <MDTypography variant="body2" color="white" mt={1}>
+            Product Management Portal
+          </MDTypography>
         </MDBox>
         <MDBox pt={4} pb={3} px={3}>
-          <MDBox component="form" role="form">
+          <MDBox component="form" role="form" onSubmit={handleSubmit}>
+            {error && (
+              <MDBox mb={2}>
+                <Alert severity="error" onClose={() => setError("")}>
+                  {error}
+                </Alert>
+              </MDBox>
+            )}
             <MDBox mb={2}>
-              <MDInput type="email" label="Email" fullWidth />
+              <MDInput
+                type="email"
+                label="Email"
+                fullWidth
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onBlur={() => setEmailTouched(true)}
+                disabled={loading}
+                required
+                autoComplete="email"
+                error={emailError}
+                helperText={emailError ? "Please enter a valid email address" : ""}
+              />
             </MDBox>
             <MDBox mb={2}>
-              <MDInput type="password" label="Password" fullWidth />
+              <MDInput
+                type="password"
+                label="Password"
+                fullWidth
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
+                required
+                autoComplete="current-password"
+              />
             </MDBox>
             <MDBox display="flex" alignItems="center" ml={-1}>
-              <Switch checked={rememberMe} onChange={handleSetRememberMe} />
+              <Switch checked={rememberMe} onChange={() => setRememberMe(!rememberMe)} />
               <MDTypography
                 variant="button"
                 fontWeight="regular"
                 color="text"
-                onClick={handleSetRememberMe}
+                onClick={() => setRememberMe(!rememberMe)}
                 sx={{ cursor: "pointer", userSelect: "none", ml: -1 }}
               >
                 &nbsp;&nbsp;Remember me
               </MDTypography>
             </MDBox>
             <MDBox mt={4} mb={1}>
-              <MDButton variant="gradient" color="info" fullWidth>
-                sign in
+              <MDButton
+                variant="gradient"
+                color="info"
+                fullWidth
+                type="submit"
+                disabled={loading || !isFormValid}
+              >
+                {loading ? (
+                  <CircularProgress size={24} color="inherit" />
+                ) : (
+                  "sign in"
+                )}
               </MDButton>
             </MDBox>
             <MDBox mt={3} mb={1} textAlign="center">
               <MDTypography variant="button" color="text">
-                Don&apos;t have an account?{" "}
                 <MDTypography
                   component={Link}
-                  to="/authentication/sign-up"
+                  to="/authentication/forgot-password"
                   variant="button"
                   color="info"
                   fontWeight="medium"
                   textGradient
                 >
-                  Sign up
+                  Forgot password?
                 </MDTypography>
               </MDTypography>
             </MDBox>
@@ -128,4 +180,4 @@ function Basic() {
   );
 }
 
-export default Basic;
+export default SignIn;
